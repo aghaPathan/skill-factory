@@ -13,6 +13,9 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 ## Available Skills
 
 <!-- CATALOG:START -->
+| Skill | Description | Platforms | Tags |
+|-------|-------------|-----------|------|
+| [playwright-autopilot](skills/playwright-autopilot/SKILL.md) | Use when user asks to "automate" a browser task, "write a playwright script", or explicitly mentions playwright automation. Do NOT trigger on general web scraping, testing, or form-filling mentions unless playwright/automation is explicitly referenced. | claude-code, gemini-cli, codex-cli | `browser` `automation` `playwright` `scraping` `mcp` |
 <!-- CATALOG:END -->
 
 ## Installation
