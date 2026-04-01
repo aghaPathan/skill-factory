@@ -1,54 +1,84 @@
 # Skill Factory
 
-Custom skills for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Each skill is a self-contained directory you can drop into your local Claude Code setup.
+Universal skills for AI coding agents. Each skill is a self-contained directory you can drop into your local setup for **Claude Code**, **Gemini CLI**, or **Codex CLI**.
+
+## Supported Platforms
+
+| Platform | Install Path | Format |
+|----------|-------------|--------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/skills/<skill>/` | SKILL.md |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/skills/<skill>/` | SKILL.md |
+| [Codex CLI](https://github.com/openai/codex) | Project root or `~/.codex/` | AGENTS.md |
 
 ## Available Skills
 
-| Skill | Description |
-|-------|-------------|
-| [playwright-autopilot](skills/playwright-autopilot/SKILL.md) | Autonomously builds production-grade Python Playwright browser automation scripts via MCP browser tools |
+<!-- CATALOG:START -->
+<!-- CATALOG:END -->
 
 ## Installation
 
-1. Clone this repo:
-   ```bash
-   git clone https://github.com/aghaawais/skill-factory.git
-   ```
+### Option 1: Copy from dist/ (recommended)
 
-2. Copy the skill you want to your Claude Code skills directory:
-   ```bash
-   cp -r skill-factory/skills/<skill-name> ~/.claude/skills/
-   ```
+Clone this repo and copy the pre-built skill for your platform:
 
-3. The skill is now available in your Claude Code sessions.
+```bash
+git clone https://github.com/aghaawais/skill-factory.git
+```
+
+**Claude Code:**
+```bash
+cp -r skill-factory/dist/claude-code/<skill-name> ~/.claude/skills/
+```
+
+**Gemini CLI:**
+```bash
+cp -r skill-factory/dist/gemini-cli/<skill-name> ~/.gemini/skills/
+```
+
+**Codex CLI:**
+```bash
+cp skill-factory/dist/codex-cli/<skill-name>/AGENTS.md ./AGENTS.md
+```
+
+### Option 2: Copy source directly
+
+If your platform uses SKILL.md (Claude Code, Gemini CLI):
+```bash
+cp -r skill-factory/skills/<skill-name> ~/.claude/skills/
+# or
+cp -r skill-factory/skills/<skill-name> ~/.gemini/skills/
+```
 
 ## Skill Structure
 
-Each skill directory contains:
-
 ```
 skills/<skill-name>/
-├── SKILL.md          # Skill definition (required)
+├── SKILL.md          # Skill definition with YAML frontmatter (source of truth)
 └── evals/
-    └── evals.json    # Evaluation test cases (optional)
+    └── evals.json    # Evaluation test cases
 ```
 
-- **SKILL.md** — The skill instructions with YAML frontmatter (`name`, `description`) that tells Claude Code when and how to use the skill
-- **evals.json** — Test prompts and expectations to validate the skill works correctly
+### SKILL.md Frontmatter
+
+```yaml
+---
+name: skill-name                    # Required — skill identifier
+description: When to trigger        # Required — activation criteria
+version: 1.0.0                      # Optional — semver
+tags: [tag1, tag2]                  # Optional — for catalog filtering
+platforms: [claude-code, gemini-cli, codex-cli]  # Optional — target platforms
+author: github-username             # Optional — contributor attribution
+---
+```
 
 ## Contributing
 
-To add a new skill:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-1. Create `skills/<your-skill-name>/SKILL.md` with frontmatter:
-   ```yaml
-   ---
-   name: your-skill-name
-   description: When to trigger this skill
-   ---
-   ```
-2. Add `skills/<your-skill-name>/evals/evals.json` with test cases
-3. Add an entry to the **Available Skills** table above
+Quick start:
+1. Create `skills/<your-skill>/SKILL.md` with frontmatter
+2. Add `evals/evals.json` with test cases
+3. Run `npm run build` to generate dist/ files
 4. Submit a PR
 
 ## License

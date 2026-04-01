@@ -1,15 +1,13 @@
-# Node.js
+# Dependencies
 node_modules/
+
+# TypeScript build output
 build/
-dist/
 
 # Skill development workspace artifacts
 *-plan.md
 *-downloads/
 *-screenshots/
-
-# Project-local config (not for public distribution)
-CLAUDE.md
 
 # OS
 .DS_Store
