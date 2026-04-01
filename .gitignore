@@ -1,0 +1,16 @@
+# Skill development workspace artifacts
+*-plan.md
+*-downloads/
+*-screenshots/
+
+# Project-local config (not for public distribution)
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*.swo
+*~

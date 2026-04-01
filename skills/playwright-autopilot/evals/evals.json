@@ -1,0 +1,59 @@
+{
+  "skill_name": "playwright-autopilot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Automate going to https://books.toscrape.com and extract all book titles and prices from the first page",
+      "expected_output": "A class-based Python script using playwright.sync_api that navigates to the URL, extracts book titles and prices, and saves to CSV",
+      "files": [],
+      "expectations": [
+        "Script is saved to ./playwright-scripts/ directory",
+        "Script uses class-based structure with setup/teardown/step methods",
+        "Script uses playwright.sync_api, NOT requests or BeautifulSoup",
+        "Script has argparse with --headed, --verbose, --url flags",
+        "Script uses logging module, not print statements",
+        "Script saves data output as CSV (tabular data)",
+        "Screenshots are saved to ./playwright-screenshots/ directory",
+        "Agent describes using MCP browser tools incrementally (not writing script all at once)",
+        "Script uses wait_until='networkidle' for navigation",
+        "Script does not use time.sleep()"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write a playwright script to log into https://the-internet.herokuapp.com/login with username 'tomsmith' and password 'SuperSecretPassword!', then verify the success message",
+      "expected_output": "A class-based Python script that logs in using env vars for credentials and verifies success",
+      "files": [],
+      "expectations": [
+        "Script is saved to ./playwright-scripts/ directory",
+        "Script uses class-based structure with setup/teardown/step methods",
+        "Credentials use os.environ with NO fallback defaults",
+        "Script has argparse with --headed, --verbose, --url flags",
+        "Script uses logging module, not print statements",
+        "Script uses get_by_role, get_by_label, or get_by_text for selectors (not just CSS)",
+        "Script verifies the success message after login",
+        "Screenshots are saved to ./playwright-screenshots/ directory",
+        "Script catches PlaywrightTimeout with contextual error info",
+        "Agent describes incremental MCP development loop"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Automate downloading the file from https://the-internet.herokuapp.com/download",
+      "expected_output": "A class-based Python script that downloads files using Playwright's download handling",
+      "files": [],
+      "expectations": [
+        "Script is saved to ./playwright-scripts/ directory",
+        "Script uses class-based structure with setup/teardown/step methods",
+        "Script uses accept_downloads=True on browser context",
+        "Script uses page.expect_download() before clicking download link",
+        "Script uses download.save_as() to persist the file",
+        "Script has argparse with --headed, --verbose, --url flags",
+        "Script uses logging module, not print statements",
+        "Screenshots are saved to ./playwright-screenshots/ directory",
+        "Script has error handling for download failures",
+        "Agent describes incremental MCP development loop"
+      ]
+    }
+  ]
+}
