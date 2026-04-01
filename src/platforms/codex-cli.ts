@@ -9,7 +9,7 @@ export class CodexCliAdapter implements PlatformAdapter {
     const header = [
       `# ${skill.frontmatter.name}`,
       "",
-      `> ${skill.frontmatter.description}`,
+      ...String(skill.frontmatter.description).split("\n").map((l) => `> ${l}`),
       "",
       "---",
       "",

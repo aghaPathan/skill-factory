@@ -21,17 +21,30 @@ async function build(): Promise<void> {
   console.log(`Found ${skillFiles.length} skill(s)\n`);
 
   // 2. Parse skills
-  const skills: ParsedSkill[] = skillFiles.map((filePath) => {
-    const raw = readFileSync(filePath, "utf-8");
-    const { data, content } = matter(raw);
-    const skillName = basename(dirname(filePath));
-    return {
-      frontmatter: data as ParsedSkill["frontmatter"],
-      body: content,
-      sourcePath: filePath,
-      skillName,
-    };
-  });
+  const skills: ParsedSkill[] = [];
+  const parseErrors: string[] = [];
+
+  for (const filePath of skillFiles) {
+    try {
+      const raw = readFileSync(filePath, "utf-8");
+      const { data, content } = matter(raw);
+      const skillName = basename(dirname(filePath));
+      skills.push({
+        frontmatter: data as ParsedSkill["frontmatter"],
+        body: content,
+        sourcePath: filePath,
+        skillName,
+      });
+    } catch (e) {
+      parseErrors.push(`${filePath}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  if (parseErrors.length > 0) {
+    console.error("Failed to parse skill files:");
+    parseErrors.forEach((err) => console.error(`  ${err}`));
+    process.exit(1);
+  }
 
   // 3. Clean and rebuild dist/
   if (existsSync(DIST_DIR)) {

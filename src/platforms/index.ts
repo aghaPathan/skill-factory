@@ -3,7 +3,7 @@ import { ClaudeCodeAdapter } from "./claude-code.js";
 import { GeminiCliAdapter } from "./gemini-cli.js";
 import { CodexCliAdapter } from "./codex-cli.js";
 
-export const PLATFORMS: PlatformAdapter[] = [
+export const PLATFORMS: readonly PlatformAdapter[] = [
   new ClaudeCodeAdapter(),
   new GeminiCliAdapter(),
   new CodexCliAdapter(),

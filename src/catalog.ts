@@ -20,9 +20,10 @@ export async function generateCatalog(): Promise<string> {
     const raw = readFileSync(filePath, "utf-8");
     const { data } = matter(raw);
 
-    const description = data.description || "No description";
+    const escapePipe = (s: string) => s.replace(/\|/g, "\\|");
+    const description = escapePipe(String(data.description || "No description"));
     const platforms = (data.platforms as string[] || ["claude-code"]).join(", ");
-    const tags = (data.tags as string[] || []).map((t: string) => `\`${t}\``).join(" ");
+    const tags = (data.tags as string[] || []).map((t: string) => `\`${escapePipe(String(t))}\``).join(" ");
 
     rows.push(
       `| [${skillName}](skills/${skillName}/SKILL.md) | ${description} | ${platforms} | ${tags} |`
@@ -44,6 +45,11 @@ export async function injectCatalog(): Promise<void> {
     return;
   }
 
+  if (endIdx <= startIdx + START_MARKER.length) {
+    console.error("ERROR: CATALOG:END marker appears before CATALOG:START — skipping to avoid corruption");
+    return;
+  }
+
   const before = readme.substring(0, startIdx + START_MARKER.length);
   const after = readme.substring(endIdx);
   const updated = `${before}\n${catalog}\n${after}`;
@@ -53,4 +59,7 @@ export async function injectCatalog(): Promise<void> {
 }
 
 // Run standalone
-injectCatalog();
+const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^\.\//, ""));
+if (isMain) {
+  injectCatalog();
+}

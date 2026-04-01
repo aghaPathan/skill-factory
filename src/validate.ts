@@ -24,7 +24,7 @@ async function validate(): Promise<void> {
     console.log(`\nValidating: ${skillName}`);
 
     for (const field of REQUIRED_FIELDS) {
-      if (!data[field]) {
+      if (data[field] == null || String(data[field]).trim() === "") {
         console.error(`  ERROR: Missing required field '${field}'`);
         hasErrors = true;
       } else {
@@ -33,7 +33,7 @@ async function validate(): Promise<void> {
     }
 
     for (const field of OPTIONAL_FIELDS) {
-      if (!data[field]) {
+      if (data[field] == null || String(data[field]).trim() === "") {
         console.warn(`  WARN: Missing optional field '${field}'`);
       } else {
         console.log(`  OK: ${field} = ${JSON.stringify(data[field])}`);
