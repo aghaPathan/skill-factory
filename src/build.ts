@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
 import { basename, dirname, join } from "path";
 import type { ParsedSkill } from "./platforms/base.js";
 import { PLATFORMS } from "./platforms/index.js";
+import { injectCatalog } from "./catalog.js";
 
 const DIST_DIR = "dist";
 const SKILLS_DIR = "skills";
@@ -56,6 +57,9 @@ async function build(): Promise<void> {
       }
     }
   }
+
+  // 5. Regenerate README catalog
+  await injectCatalog();
 
   console.log(
     `\nBuild complete: ${skills.length} skill(s) x ${PLATFORMS.length} platform(s) = ${totalFiles} file(s)`
