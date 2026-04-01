@@ -1,10 +1,7 @@
----
-name: playwright-autopilot
-description: Use when user asks to "automate" a browser task, "write a playwright script", or explicitly mentions playwright automation. Do NOT trigger on general web scraping, testing, or form-filling mentions unless playwright/automation is explicitly referenced.
-version: 1.0.0
-tags: [browser, automation, playwright, scraping, mcp]
-platforms: [claude-code, gemini-cli, codex-cli]
-author: aghaPathan
+# playwright-autopilot
+
+> Use when user asks to "automate" a browser task, "write a playwright script", or explicitly mentions playwright automation. Do NOT trigger on general web scraping, testing, or form-filling mentions unless playwright/automation is explicitly referenced.
+
 ---
 
 # Playwright Autopilot
