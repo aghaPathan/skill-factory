@@ -16,11 +16,33 @@ Autonomously builds production-grade Python Playwright scripts by exploring web 
 - **ALWAYS save scripts to `./playwright-scripts/`** and screenshots to `./playwright-screenshots/`.
 - **NEVER hardcode credentials** — not even as "fallback defaults." Use `os.environ["VAR"]` with no default. Document required env vars in the script docstring.
 
+## App Reconnaissance (Phase 0 — Before Automating)
+
+Before writing any automation, map the target application. Do not skip this.
+
+1. **NAVIGATE** → `browser_navigate` to the target URL
+2. **SNAPSHOT** → `browser_take_screenshot` + `browser_snapshot` to see initial state
+3. **MAP STRUCTURE** → Identify: navigation elements, forms, auth gates, key CTAs
+4. **EXPLORE ROUTES** → Follow 3-5 key links to map page hierarchy. For each page:
+   - `browser_snapshot` to capture DOM structure
+   - `browser_network_requests` to identify API patterns
+   - `browser_console_messages` to catch errors/warnings
+5. **IDENTIFY AUTH** → If login/auth detected, note it as a prerequisite step
+6. **DOCUMENT** → Write a brief mental model comment in your response:
+   - Pages discovered and their purpose
+   - Authentication requirements
+   - Key forms/interactions to automate
+   - API patterns observed (REST endpoints, GraphQL, etc.)
+   - Any red flags (CAPTCHAs, rate limiting, CSP restrictions)
+
+**Then** proceed to The Development Loop with this understanding.
+
 ## The Development Loop
 
 Follow this loop exactly. Do not skip steps.
 
 ```
+0. RECON       → App Reconnaissance (Phase 0) — map the app first
 1. UNDERSTAND  → Parse user instructions into discrete numbered steps
 2. NAVIGATE    → browser_navigate to the target URL
 3. OBSERVE     → browser_take_screenshot + browser_snapshot
@@ -48,12 +70,45 @@ Return to normal after 2 consecutive successful actions.
 
 Save all screenshots to `./playwright-screenshots/` with step-based names: `step_01_navigate.png`, `step_02_fill_login.png`, etc.
 
-## Failure Recovery
+## Breakpoint Debug Protocol
 
-1. Element not found → try 2 alternative selectors (text, CSS, XPath)
-2. Unexpected page → screenshot, dismiss popups/modals, retry
-3. After 3 failed attempts → show screenshot to user, ask for guidance
-4. CAPTCHA → stop, show screenshot, ask user to solve in browser. Add `# CAPTCHA: manual intervention required` + `input("Solve CAPTCHA and press Enter...")` in script
+When any action fails, follow this systematic investigation. Do NOT retry blindly.
+
+### Investigation Steps (execute in order)
+
+1. **PAUSE** → Stop. Do not retry the failed action.
+2. **SCREENSHOT** → `browser_take_screenshot` — capture exact visual state
+3. **INSPECT DOM** → `browser_snapshot` — is the target element present? Wrong state? Hidden?
+4. **CHECK CONSOLE** → `browser_console_messages` — any JS errors, warnings, or failed assertions?
+5. **CHECK NETWORK** → `browser_network_requests` — any failed API calls (4xx/5xx)? Pending requests?
+6. **EVALUATE** → `browser_evaluate` to:
+   - Test the selector directly: `document.querySelector('...')`
+   - Check element state: `el.disabled`, `el.offsetParent` (visibility), `el.getAttribute('aria-hidden')`
+   - Inspect page variables or state that might affect the element
+
+### Hypothesis-Fix Cycle
+
+7. **HYPOTHESIZE** → Based on steps 2-6, form ONE specific theory (e.g., "element is inside iframe", "page hasn't finished loading", "modal is blocking")
+8. **FIX** → Apply ONE targeted fix based on the hypothesis
+9. **VERIFY** → `browser_take_screenshot` + `browser_snapshot` to confirm
+
+### Escalation
+
+- After **3 failed hypotheses** → trigger Web Search Fallback (see below)
+- After web search also fails → show screenshot to user, explain what was tried, ask for guidance
+- **CAPTCHA** → immediate escalation: stop, show screenshot, ask user. Add `input("Solve CAPTCHA...")` to script.
+
+## Web Search Fallback
+
+When 3 debug hypotheses have failed, external documentation may help.
+
+1. **ASK USER** → "I've tried 3 approaches and none worked. Should I search Playwright documentation for help with [specific issue]?"
+2. **If approved** → Search using WebSearch or context7 for:
+   - The specific Playwright API or selector strategy
+   - Known browser quirks related to the failure
+   - Alternative approaches for the interaction type
+3. **Apply findings** → Try the documented approach
+4. **If still failing** → Show user the screenshot + all attempted approaches, ask for manual guidance
 
 ## Script Template (Class-Based)
 
@@ -199,3 +254,6 @@ After building the script, you MUST:
 | "I'll save it in the current directory" | `./playwright-scripts/` only. |
 | "print() is good enough" | Use `logging` module with `--verbose`. |
 | "I don't need argparse for this" | Every script gets `--headed`, `--verbose`, `--url`. |
+| "I'll figure out the page as I go" | Run App Reconnaissance first. Map before you automate. |
+| "Let me just retry with a different selector" | Follow Breakpoint Debug Protocol. Investigate before fixing. |
+| "I don't need to search docs for this" | After 3 failures, ask user about Web Search Fallback. |

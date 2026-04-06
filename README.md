@@ -20,24 +20,29 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 
 ## Featured Skills
 
-### Playwright Autopilot
+### Playwright Autopilot v2
 
-> Your AI agent explores a live browser and hands you the Python script that reproduces every action.
+> Your AI agent thinks like a developer — explores the app, builds the script step by step, and debugs failures methodically.
 
-Most browser automation starts with writing a script and hoping it works. Playwright Autopilot flips this: the agent opens a real browser via MCP tools, interacts with pages step by step, and **translates each action into Python code as it goes** — building your script incrementally through live exploration.
+Most browser automation starts with writing a script and hoping it works. Playwright Autopilot flips this: the agent **maps the target application first** (routes, auth, API patterns), then opens a real browser via MCP tools, interacts with pages step by step, and **translates each action into Python code as it goes**. When something breaks, it follows a full DevTools-style debug protocol instead of blindly retrying.
 
 ```mermaid
 graph LR
-    A[Navigate] --> B[Observe Page]
+    R[Recon App] --> A[Navigate]
+    A --> B[Observe Page]
     B --> C[Act via MCP]
     C --> D[Verify Screenshot]
     D --> E[Translate to Python]
     E --> B
+    C -->|Failure| F[Debug Protocol]
+    F -->|Fixed| C
+    F -->|3 failures| G[Web Search Fallback]
 ```
 
 **Why it's different:**
-- **No upfront scripting** — the agent explores the live page first, writes code second
-- **Trial-and-error recovery** — failed selectors get automatic retries with alternatives, CAPTCHAs pause for human help
+- **App reconnaissance first** — maps pages, auth gates, and API patterns before writing a single line of automation
+- **Developer-style debugging** — failures trigger a systematic investigation: DOM inspection, console logs, network requests, and JS evaluation — not blind retries
+- **Web search when stuck** — after 3 failed hypotheses, asks permission to search Playwright docs for help
 - **Production-grade output** — every script is a class with CLI args, logging, error handling, and accessible selectors
 
 [See the full showcase &rarr;](skills/playwright-autopilot/README.md)
