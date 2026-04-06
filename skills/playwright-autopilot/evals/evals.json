@@ -1,5 +1,6 @@
 {
   "skill_name": "playwright-autopilot",
+  "version": "3.0.0",
   "evals": [
     {
       "id": 1,
@@ -7,16 +8,19 @@
       "expected_output": "A class-based Python script using playwright.sync_api that navigates to the URL, extracts book titles and prices, and saves to CSV",
       "files": [],
       "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses SKIP or LIGHT recon (not FULL) — this is a single-page static task",
+        "Agent uses browser_snapshot as primary observation (not browser_take_screenshot for every step)",
         "Script is saved to ./playwright-scripts/ directory",
         "Script uses class-based structure with setup/teardown/step methods",
         "Script uses playwright.sync_api, NOT requests or BeautifulSoup",
         "Script has argparse with --headed, --verbose, --url flags",
         "Script uses logging module, not print statements",
         "Script saves data output as CSV (tabular data)",
-        "Screenshots are saved to ./playwright-screenshots/ directory",
-        "Agent describes using MCP browser tools incrementally (not writing script all at once)",
-        "Script uses wait_until='networkidle' for navigation",
-        "Script does not use time.sleep()"
+        "Agent builds script incrementally via MCP (not writing full script upfront)",
+        "Script uses wait_until='domcontentloaded' (not 'networkidle')",
+        "Script does not use time.sleep()",
+        "If pagination is explored, agent generalizes to a Python loop after 2 pages (Pattern Recognition)"
       ]
     },
     {
@@ -25,6 +29,9 @@
       "expected_output": "A class-based Python script that logs in using env vars for credentials and verifies success",
       "files": [],
       "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses LIGHT or FULL recon, recognizing auth is involved",
+        "Agent uses browser_snapshot as primary observation tool",
         "Script is saved to ./playwright-scripts/ directory",
         "Script uses class-based structure with setup/teardown/step methods",
         "Credentials use os.environ with NO fallback defaults",
@@ -32,9 +39,9 @@
         "Script uses logging module, not print statements",
         "Script uses get_by_role, get_by_label, or get_by_text for selectors (not just CSS)",
         "Script verifies the success message after login",
-        "Screenshots are saved to ./playwright-screenshots/ directory",
         "Script catches PlaywrightTimeout with contextual error info",
-        "Agent describes incremental MCP development loop"
+        "Agent marks sub-tasks complete in TASK PLAN as it progresses",
+        "Agent stops after DONE WHEN is met (does not explore additional pages post-login)"
       ]
     },
     {
@@ -43,16 +50,53 @@
       "expected_output": "A class-based Python script that downloads files using Playwright's download handling",
       "files": [],
       "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses SKIP or LIGHT recon — this is a simple download task",
+        "Agent uses browser_snapshot as primary observation tool",
         "Script is saved to ./playwright-scripts/ directory",
         "Script uses class-based structure with setup/teardown/step methods",
-        "Script uses accept_downloads=True on browser context",
+        "Script uses accept_downloads=True on browser context (set in setup())",
         "Script uses page.expect_download() before clicking download link",
         "Script uses download.save_as() to persist the file",
         "Script has argparse with --headed, --verbose, --url flags",
         "Script uses logging module, not print statements",
-        "Screenshots are saved to ./playwright-screenshots/ directory",
         "Script has error handling for download failures",
-        "Agent describes incremental MCP development loop"
+        "Agent builds script incrementally via MCP",
+        "Agent uses Layered Debug (Quick Check first) if any step fails"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Scrape all book titles from all 50 pages of https://books.toscrape.com",
+      "expected_output": "A class-based Python script that scrapes all pages using a pagination loop, NOT by visiting all 50 pages via MCP",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block before any browser action",
+        "Agent uses SKIP recon (static site, structure is obvious)",
+        "Agent visits page 1 and page 2 via MCP to understand pagination pattern",
+        "Agent applies Pattern Recognition — generalizes to a Python loop after 2 iterations",
+        "Agent does NOT visit all 50 pages via MCP tools",
+        "Script contains a while/for loop for pagination",
+        "Script uses browser_snapshot as primary observation (not screenshots for every page)",
+        "Script saves all titles to CSV",
+        "Script uses wait_until='domcontentloaded'",
+        "Agent stops when DONE WHEN criteria are met"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Fill out the multi-step form at https://the-internet.herokuapp.com/dynamic_controls and verify the result",
+      "expected_output": "A class-based script handling dynamic content with explicit waits",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block before any browser action",
+        "Agent uses LIGHT recon to understand the form structure",
+        "Agent uses browser_snapshot as primary observation",
+        "Script uses page.wait_for_selector() for dynamic elements (not networkidle)",
+        "If action fails, agent uses Quick Check first (not full 5-step investigation)",
+        "After any debug fix, agent re-reads Goal Lock before continuing (GOAL CHECK)",
+        "Agent does not explore unrelated pages on the site",
+        "Script uses get_by_role or get_by_text selectors"
       ]
     }
   ]
