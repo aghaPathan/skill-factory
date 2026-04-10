@@ -33,6 +33,42 @@ export function validateFrontmatter(
   return { errors, warnings };
 }
 
+const KNOWN_PLATFORMS = ["claude-code", "gemini-cli", "codex-cli"];
+
+const PLATFORM_SPECIFIC_PATTERNS: { pattern: RegExp; platforms: string[]; label: string }[] = [
+  {
+    pattern: /browser_snapshot|browser_navigate|browser_click|browser_take_screenshot/,
+    platforms: ["claude-code"],
+    label: "Playwright MCP tools (browser_*)",
+  },
+];
+
+export function checkPlatformCompatibility(
+  body: string,
+  declaredPlatforms: string[]
+): string[] {
+  const warnings: string[] = [];
+
+  for (const p of declaredPlatforms) {
+    if (!KNOWN_PLATFORMS.includes(p)) {
+      warnings.push(`Unknown platform '${p}' — known platforms: ${KNOWN_PLATFORMS.join(", ")}`);
+    }
+  }
+
+  for (const { pattern, platforms, label } of PLATFORM_SPECIFIC_PATTERNS) {
+    if (pattern.test(body)) {
+      const unsupported = declaredPlatforms.filter((p) => !platforms.includes(p));
+      if (unsupported.length > 0) {
+        warnings.push(
+          `References ${label} but targets ${unsupported.join(", ")} — these platforms may not support these tools`
+        );
+      }
+    }
+  }
+
+  return warnings;
+}
+
 async function validate(): Promise<void> {
   const skillFiles = await glob("skills/*/SKILL.md");
 
@@ -47,9 +83,10 @@ async function validate(): Promise<void> {
     const skillName = basename(dirname(filePath));
 
     let data: Record<string, unknown>;
+    let content: string;
     try {
       const raw = readFileSync(filePath, "utf-8");
-      ({ data } = matter(raw));
+      ({ data, content } = matter(raw));
     } catch (e) {
       console.error(`\nValidating: ${skillName}`);
       console.error(`  ERROR: Failed to read/parse: ${e instanceof Error ? e.message : String(e)}`);
@@ -76,6 +113,11 @@ async function validate(): Promise<void> {
       } else {
         console.log(`  OK: ${field} = ${JSON.stringify(data[field])}`);
       }
+    }
+
+    const platformWarnings = checkPlatformCompatibility(content, Array.isArray(data.platforms) ? data.platforms : []);
+    for (const w of platformWarnings) {
+      console.warn(`  PLATFORM: ${w}`);
     }
   }
 
