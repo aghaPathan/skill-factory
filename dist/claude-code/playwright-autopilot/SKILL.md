@@ -6,7 +6,7 @@ description: >-
   scraping, testing, or form-filling mentions unless playwright/automation is
   explicitly referenced. Do NOT trigger on Playwright test writing (use TDD
   skill instead).
-version: 3.0.0
+version: 3.1.0
 tags:
   - browser
   - automation
@@ -79,7 +79,15 @@ Scale reconnaissance to task complexity. Do NOT over-explore.
 6. Note: pages, auth requirements, key interactions
 7. → GOAL CHECK. Proceed to Development Loop.
 
-**Choosing a tier:** Default to SKIP. Upgrade to LIGHT if the snapshot reveals complexity you didn't expect. Upgrade to FULL only for multi-page flows with auth or dynamic routing.
+**Choosing a tier:**
+
+| Start with | Upgrade to | When |
+|---|---|---|
+| SKIP | LIGHT | Snapshot reveals >5 interactive elements, forms, or navigation you didn't expect |
+| LIGHT | FULL | Task requires visiting 2+ pages, or auth gate is detected in snapshot |
+| Any | — | Never upgrade preemptively. Only upgrade after a snapshot proves you need more info. |
+
+Default to SKIP. Most tasks don't need FULL.
 
 ## The Development Loop
 
@@ -102,10 +110,10 @@ Follow this loop exactly. Every step has a purpose — do not skip.
 
 **Step 9 is the exit gate.** When DONE WHEN is met, STOP and go to VALIDATE. Do not add features the user didn't request.
 
-**Guard conditions:**
-- Cannot ACT without OBSERVE (no blind clicking)
-- Cannot TRANSLATE without VERIFY (no writing code for unverified actions)
-- Cannot skip GOAL CHECK at step 1 of each cycle
+**Guard conditions (violations = Red Flag):**
+- Cannot ACT without OBSERVE: If your last tool call was NOT `browser_snapshot`, you must snapshot before acting. Blind clicking leads to wrong-element errors.
+- Cannot TRANSLATE without VERIFY: If you wrote Python code for an action you did not verify succeeded via snapshot, delete it. Unverified code is wrong code.
+- Cannot skip GOAL CHECK: Every loop iteration starts with "Which sub-task am I on?" If you cannot answer, STOP and re-read Goal Lock.
 
 ## Pattern Recognition
 
@@ -118,6 +126,7 @@ After step 6 (VERIFY), ask yourself:
   STOP iterating via MCP. Write a Python loop that generalizes the pattern.
   Use data from your 2 iterations as the template (selectors, structure, navigation).
   Move to step 8 (TRANSLATE) with the loop code.
+  *(Why 2: First iteration discovers the structure. Second confirms it repeats identically. More iterations waste tokens without new information.)*
 
 - **NO:** Continue to step 8 normally.
 
@@ -199,6 +208,8 @@ Environment Variables:
 import argparse
 import logging
 import os
+import sys
+from datetime import datetime
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
 # ── Configuration ──
@@ -239,6 +250,18 @@ class AutomationName:  # TODO: rename to descriptive class name
         if self.playwright:
             self.playwright.stop()
 
+    def _retry(self, action, max_attempts=3):
+        """Retry flaky interactions with increasing timeout."""
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self.page.set_default_timeout(self.timeout * attempt)
+                return action()
+            except PlaywrightTimeout:
+                if attempt == max_attempts:
+                    raise
+                logger.warning(f"Attempt {attempt}/{max_attempts} failed, retrying...")
+        self.page.set_default_timeout(self.timeout)
+
     def step_01_navigate(self):
         """Navigate to target page."""
         self.page.goto(TARGET_URL, wait_until="domcontentloaded")
@@ -254,10 +277,15 @@ class AutomationName:  # TODO: rename to descriptive class name
             # ... call all steps
         except PlaywrightTimeout as e:
             logger.error(f"Timeout at step: {e}")
-            self.page.screenshot(path="./playwright-screenshots/error.png")
+            if self.page:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.page.screenshot(path=f"./playwright-screenshots/error_{ts}.png")
             raise
         except Exception as e:
             logger.error(f"Automation failed: {e}")
+            if self.page:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                self.page.screenshot(path=f"./playwright-screenshots/error_{ts}.png")
             raise
         finally:
             self.teardown()
@@ -280,7 +308,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        sys.exit(1)
 ```
 
 ## Quality Checklist
@@ -289,13 +320,15 @@ if __name__ == "__main__":
 |---|---|
 | **Selectors** | `get_by_role()`, `get_by_text()`, `get_by_label()`, `get_by_placeholder()` first. CSS/XPath only as fallback. |
 | **Waits** | `wait_until="domcontentloaded"` for navigation. `page.wait_for_selector()` or `expect(locator).to_be_visible()` before interactions on dynamic pages. NEVER `time.sleep()`. |
-| **Retries** | Wrap flaky interactions in retry logic (max 3 attempts, increasing timeout). |
+| **Retries** | Wrap flaky interactions in `_retry()` method (max 3 attempts, increasing timeout). See template. |
 | **Error handling** | Catch `PlaywrightTimeout`, log URL + selector + step name, re-raise with context. |
 | **Credentials** | `os.environ["VAR"]` — no default values, no fallbacks. Document in docstring. |
 | **Logging** | Use `logging` module. Quiet by default, `--verbose` enables DEBUG. Never bare `print()`. |
 | **CLI args** | argparse with `--headed`, `--verbose`, `--url`. |
 | **Data output** | Tabular → CSV. Nested/hierarchical → JSON. |
 | **Patterns** | Paginated/repeated content → Python loop after 2 MCP iterations. Never visit all pages via MCP. |
+| **Data validation** | Assert output is non-empty before writing. Log row count. For CSV: verify header matches expectations. For JSON: validate structure. |
+| **Rate limiting** | Add `page.wait_for_timeout(500)` between repeated page loads (pagination, list iteration). Never use `time.sleep()` — Playwright's wait is non-blocking. |
 
 ## Edge Cases
 
@@ -308,6 +341,8 @@ if __name__ == "__main__":
 | **Shadow DOM** | `browser_evaluate` with `el.shadowRoot.querySelector()` to pierce shadow roots. Snapshots cannot see shadow-rooted elements. |
 | **SPAs / dynamic content** | Use `wait_until="domcontentloaded"` + `page.wait_for_selector()`. Do NOT rely on `networkidle` (hangs on WebSockets, polling, analytics). |
 | **CAPTCHAs** | Stop. Show user. `input("Solve CAPTCHA and press Enter...")` + comment in script. |
+| **Bot detection** | Set realistic user-agent: `browser.new_context(user_agent="...")`. Add `--user-agent` CLI arg for configurability. |
+| **Output collision** | Log a warning if output file already exists before overwriting. Overwrite is expected — warn, don't crash. |
 
 ## Context Budget
 
@@ -320,15 +355,22 @@ Long sessions exhaust the context window, causing drift. Stay lean:
 - After 2 debug cycles on the same issue → escalate to user or docs
 - If you notice yourself losing track → re-read Goal Lock, summarize progress
 
+**Hard limits:**
+- Maximum **5 screenshots** per session (each ~100KB = ~25K tokens)
+- Maximum **3 Full Investigation** cycles before escalating to user
+- Maximum **15 Development Loop** cycles total. If not done, reassess TASK PLAN scope.
+- If **>20 MCP tool calls** without completing a sub-task, something is wrong. STOP and re-read Goal Lock.
+
 ## Validation Protocol
 
 After building the script, you MUST:
 
 1. Save to `./playwright-scripts/<descriptive_name>.py`
-2. Create output dirs: `mkdir -p ./playwright-scripts ./playwright-screenshots`
-3. Run: `python ./playwright-scripts/<name>.py --headed --verbose`
-4. If fails → read error, apply Layered Debug to the script (not MCP), re-run (max 3 attempts)
-5. If passes → present script to user with: what it does, where it's saved, how to run it
+2. Create `./playwright-scripts/requirements.txt`: `playwright>=1.40`
+3. Create output dirs: `mkdir -p ./playwright-scripts ./playwright-screenshots`
+4. Run: `python ./playwright-scripts/<name>.py --headed --verbose`
+5. If fails → read error, apply Layered Debug to the script (not MCP), re-run (max 3 attempts)
+6. If passes → present script to user with: what it does, where it's saved, how to run it, how to install deps
 
 ## Red Flags — STOP If You Think This
 

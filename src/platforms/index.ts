@@ -9,9 +9,5 @@ export const PLATFORMS: readonly PlatformAdapter[] = [
   new CodexCliAdapter(),
 ];
 
-export function getPlatform(id: string): PlatformAdapter | undefined {
-  return PLATFORMS.find((p) => p.platformId === id);
-}
-
 export { ClaudeCodeAdapter, GeminiCliAdapter, CodexCliAdapter };
 export type { PlatformAdapter, ParsedSkill, OutputFile, SkillFrontmatter } from "./base.js";

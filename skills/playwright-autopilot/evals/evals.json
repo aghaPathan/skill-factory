@@ -1,6 +1,6 @@
 {
   "skill_name": "playwright-autopilot",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "evals": [
     {
       "id": 1,
@@ -97,6 +97,55 @@
         "After any debug fix, agent re-reads Goal Lock before continuing (GOAL CHECK)",
         "Agent does not explore unrelated pages on the site",
         "Script uses get_by_role or get_by_text selectors"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Automate navigating to https://the-internet.herokuapp.com/dynamic_loading/1 — click Start, wait for the hidden element to appear, and extract the displayed text",
+      "expected_output": "A class-based Python script that handles dynamic loading with explicit waits and Layered Debug if the element isn't immediately available",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock before any browser action",
+        "Agent uses browser_snapshot after clicking Start to verify loading state",
+        "Script uses page.wait_for_selector() to wait for the dynamically loaded element",
+        "If element not found, agent applies Quick Check first (not Full Investigation)",
+        "Script does NOT use time.sleep() to wait for loading",
+        "Script captures the loaded text and logs it",
+        "Script uses class-based structure with setup/teardown/step methods",
+        "Agent marks sub-tasks as complete in TASK PLAN"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Write a playwright script that: 1) logs into https://the-internet.herokuapp.com/login with credentials from env vars, 2) navigates to /secure, 3) verifies the secure area content, 4) logs out, 5) verifies redirect back to login page",
+      "expected_output": "A class-based script with separate step methods for login, verify, logout, and verify-logout",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock with all 4+ sub-tasks before any browser action",
+        "Agent uses FULL recon (multi-page flow with auth)",
+        "Script has separate step_NN methods for each phase (login, verify-secure, logout, verify-redirect)",
+        "Credentials use os.environ with NO fallback defaults",
+        "Script verifies success at each step (not just login)",
+        "Agent marks sub-tasks complete in sequence",
+        "Agent stops when DONE WHEN is met (does not explore other pages)",
+        "Script uses class-based structure with setup/teardown",
+        "Script has argparse with --headed, --verbose, --url flags"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Automate clicking the 'Challenging DOM' button at https://the-internet.herokuapp.com/challenging_dom and extract the full table data",
+      "expected_output": "A class-based script that handles non-standard selectors, demonstrating the Layered Debug protocol",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock before any browser action",
+        "If initial selector fails, agent uses Quick Check first (not Full Investigation)",
+        "If Quick Check fails, agent escalates to Full Investigation (screenshot + console + evaluate)",
+        "Agent uses browser_evaluate to inspect DOM structure when standard selectors fail",
+        "Script uses robust selectors discovered through the debug process",
+        "Agent does NOT ask user for help before attempting autonomous debug",
+        "Script saves extracted table data as CSV",
+        "Script uses class-based structure with setup/teardown/step methods"
       ]
     }
   ]
