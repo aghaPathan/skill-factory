@@ -9,6 +9,10 @@ build/
 *-downloads/
 *-screenshots/
 
+# Local tooling
+.serena/
+docs/
+
 # OS
 .DS_Store
 Thumbs.db
