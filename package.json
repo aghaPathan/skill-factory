@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsx src/build.ts",
     "validate": "tsx src/validate.ts",
+    "eval-check": "tsx src/eval-check.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
