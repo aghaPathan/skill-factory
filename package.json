@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "tsx src/build.ts",
-    "validate": "tsx src/validate.ts"
+    "validate": "tsx src/validate.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "ai-skills",
@@ -20,6 +22,7 @@
     "glob": "^13.0.6",
     "gray-matter": "^4.0.3",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^3.2.4"
   }
 }
