@@ -1,0 +1,152 @@
+{
+  "skill_name": "playwright-autopilot-ts",
+  "version": "1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Automate going to https://books.toscrape.com and extract all book titles and prices from the first page. Use TypeScript.",
+      "expected_output": "A class-based TypeScript script using playwright that navigates to the URL, extracts book titles and prices, and saves to CSV",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses SKIP or LIGHT recon (not FULL) — this is a single-page static task",
+        "Agent uses browser_snapshot as primary observation (not browser_take_screenshot for every step)",
+        "Script is saved to ./playwright-scripts/ directory as a .ts file",
+        "Script uses class-based structure with async setup/teardown/step methods",
+        "Script uses import { chromium } from 'playwright' with async/await, NOT requests or cheerio",
+        "Script has CLI args via process.argv with --headed, --verbose, --url flags",
+        "Script uses the log() utility pattern, not bare console.log in non-verbose mode",
+        "Script saves data output as CSV (tabular data)",
+        "Agent builds script incrementally via MCP (not writing full script upfront)",
+        "Script uses waitUntil: 'domcontentloaded' (not 'networkidle')",
+        "Script does not use raw setTimeout for waiting",
+        "If pagination is explored, agent generalizes to a TypeScript loop after 2 pages (Pattern Recognition)",
+        "Script includes TypeScript types (Browser, Page, BrowserContext)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write a TypeScript playwright script to log into https://the-internet.herokuapp.com/login with username 'tomsmith' and password 'SuperSecretPassword!', then verify the success message",
+      "expected_output": "A class-based TypeScript script that logs in using env vars for credentials and verifies success",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses LIGHT or FULL recon, recognizing auth is involved",
+        "Agent uses browser_snapshot as primary observation tool",
+        "Script is saved to ./playwright-scripts/ directory as a .ts file",
+        "Script uses class-based structure with async setup/teardown/step methods",
+        "Credentials use process.env with explicit validation (throw if missing), NO fallback defaults",
+        "Script has CLI args via process.argv with --headed, --verbose, --url flags",
+        "Script uses the log() utility pattern, not bare console.log",
+        "Script uses getByRole, getByLabel, or getByText for selectors (not just CSS)",
+        "Script verifies the success message after login",
+        "Script catches TimeoutError with contextual error info",
+        "Agent marks sub-tasks complete in TASK PLAN as it progresses",
+        "Agent stops after DONE WHEN is met (does not explore additional pages post-login)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Automate downloading the file from https://the-internet.herokuapp.com/download using TypeScript",
+      "expected_output": "A class-based TypeScript script that downloads files using Playwright's download handling",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block (GOAL, TASK PLAN, DONE WHEN) before any browser action",
+        "Agent uses SKIP or LIGHT recon — this is a simple download task",
+        "Agent uses browser_snapshot as primary observation tool",
+        "Script is saved to ./playwright-scripts/ directory as a .ts file",
+        "Script uses class-based structure with async setup/teardown/step methods",
+        "Script uses Promise.all([page.waitForEvent('download'), page.click(...)]) pattern for downloads",
+        "Script uses download.saveAs() to persist the file",
+        "Script has CLI args via process.argv with --headed, --verbose, --url flags",
+        "Script uses the log() utility pattern, not bare console.log",
+        "Script has error handling for download failures",
+        "Agent builds script incrementally via MCP",
+        "Agent uses Layered Debug (Quick Check first) if any step fails"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Scrape all book titles from all 50 pages of https://books.toscrape.com using TypeScript",
+      "expected_output": "A class-based TypeScript script that scrapes all pages using a pagination loop, NOT by visiting all 50 pages via MCP",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block before any browser action",
+        "Agent uses SKIP recon (static site, structure is obvious)",
+        "Agent visits page 1 and page 2 via MCP to understand pagination pattern",
+        "Agent applies Pattern Recognition — generalizes to a TypeScript loop after 2 iterations",
+        "Agent does NOT visit all 50 pages via MCP tools",
+        "Script contains a while/for loop for pagination",
+        "Script uses browser_snapshot as primary observation (not screenshots for every page)",
+        "Script saves all titles to CSV",
+        "Script uses waitUntil: 'domcontentloaded'",
+        "Agent stops when DONE WHEN criteria are met"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Fill out the multi-step form at https://the-internet.herokuapp.com/dynamic_controls and verify the result using TypeScript",
+      "expected_output": "A class-based TypeScript script handling dynamic content with explicit waits",
+      "files": [],
+      "expectations": [
+        "Agent writes a Goal Lock block before any browser action",
+        "Agent uses LIGHT recon to understand the form structure",
+        "Agent uses browser_snapshot as primary observation",
+        "Script uses await page.waitForSelector() for dynamic elements (not networkidle)",
+        "If action fails, agent uses Quick Check first (not full 5-step investigation)",
+        "After any debug fix, agent re-reads Goal Lock before continuing (GOAL CHECK)",
+        "Agent does not explore unrelated pages on the site",
+        "Script uses getByRole or getByText selectors"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Automate navigating to https://the-internet.herokuapp.com/dynamic_loading/1 — click Start, wait for the hidden element to appear, and extract the displayed text. Use TypeScript.",
+      "expected_output": "A class-based TypeScript script that handles dynamic loading with explicit waits and Layered Debug if the element isn't immediately available",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock before any browser action",
+        "Agent uses browser_snapshot after clicking Start to verify loading state",
+        "Script uses await page.waitForSelector() to wait for the dynamically loaded element",
+        "If element not found, agent applies Quick Check first (not Full Investigation)",
+        "Script does NOT use raw setTimeout to wait for loading",
+        "Script captures the loaded text and logs it",
+        "Script uses class-based structure with async setup/teardown/step methods",
+        "Agent marks sub-tasks as complete in TASK PLAN"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Write a TypeScript playwright script that: 1) logs into https://the-internet.herokuapp.com/login with credentials from env vars, 2) navigates to /secure, 3) verifies the secure area content, 4) logs out, 5) verifies redirect back to login page",
+      "expected_output": "A class-based TypeScript script with separate async step methods for login, verify, logout, and verify-logout",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock with all 4+ sub-tasks before any browser action",
+        "Agent uses FULL recon (multi-page flow with auth)",
+        "Script has separate async stepNN methods for each phase (login, verify-secure, logout, verify-redirect)",
+        "Credentials use process.env with explicit validation (throw if missing), NO fallback defaults",
+        "Script verifies success at each step (not just login)",
+        "Agent marks sub-tasks complete in sequence",
+        "Agent stops when DONE WHEN is met (does not explore other pages)",
+        "Script uses class-based structure with async setup/teardown",
+        "Script has CLI args via process.argv with --headed, --verbose, --url flags"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Automate clicking the 'Challenging DOM' button at https://the-internet.herokuapp.com/challenging_dom and extract the full table data. Use TypeScript.",
+      "expected_output": "A class-based TypeScript script that handles non-standard selectors, demonstrating the Layered Debug protocol",
+      "files": [],
+      "expectations": [
+        "Agent writes Goal Lock before any browser action",
+        "If initial selector fails, agent uses Quick Check first (not Full Investigation)",
+        "If Quick Check fails, agent escalates to Full Investigation (screenshot + console + evaluate)",
+        "Agent uses browser_evaluate to inspect DOM structure when standard selectors fail",
+        "Script uses robust selectors discovered through the debug process",
+        "Agent does NOT ask user for help before attempting autonomous debug",
+        "Script saves extracted table data as CSV",
+        "Script uses class-based structure with async setup/teardown/step methods"
+      ]
+    }
+  ]
+}
