@@ -21,32 +21,47 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 
 ## Featured Skills
 
-### Playwright Autopilot v2
+### Playwright Autopilot v3 — Anti-Drift Architecture
 
-> Your AI agent thinks like a developer — explores the app, builds the script step by step, and debugs failures methodically.
+> Your AI agent locks a goal, explores a live browser, builds the script one action at a time, and stops when done.
 
-Most browser automation starts with writing a script and hoping it works. Playwright Autopilot flips this: the agent **maps the target application first** (routes, auth, API patterns), then opens a real browser via MCP tools, interacts with pages step by step, and **translates each action into Python code as it goes**. When something breaks, it follows a full DevTools-style debug protocol instead of blindly retrying.
+Most browser automation starts with writing a script and hoping it works. Playwright Autopilot flips this: the agent **registers your goal** (Goal Lock), opens a real browser via MCP tools, interacts with pages step by step, and **translates each verified action into code as it goes**. When it detects repeating patterns (pagination, table rows), it generalizes to a loop instead of exhaustively iterating. When something breaks, it follows a layered debug protocol — Quick Check first, Full Investigation only if needed.
+
+Available in **Python** and **TypeScript**:
 
 ```mermaid
 graph LR
-    R[Recon App] --> A[Navigate]
-    A --> B[Observe Page]
+    GL[Goal Lock] --> R[Smart Recon]
+    R --> A[Navigate]
+    A --> B[Observe via Snapshot]
     B --> C[Act via MCP]
-    C --> D[Verify Screenshot]
-    D --> E[Translate to Python]
-    E --> B
-    C -->|Failure| F[Debug Protocol]
-    F -->|Fixed| C
-    F -->|3 failures| G[Web Search Fallback]
+    C --> D[Verify via Snapshot]
+    D --> E{Repeating Pattern?}
+    E -->|Yes, 2+ times| F[Write Loop]
+    E -->|No| G[Translate to Code]
+    F --> H[Progress Check]
+    G --> H
+    H -->|Done| I[Validate & Deliver]
+    H -->|Continue| B
+    C -->|Failure| J[Layered Debug]
+    J -->|Fixed| C
+    J -->|2 failures| K[Search Docs Autonomously]
 ```
 
 **Why it's different:**
-- **App reconnaissance first** — maps pages, auth gates, and API patterns before writing a single line of automation
-- **Developer-style debugging** — failures trigger a systematic investigation: DOM inspection, console logs, network requests, and JS evaluation — not blind retries
-- **Web search when stuck** — after 3 failed hypotheses, asks permission to search Playwright docs for help
-- **Production-grade output** — every script is a class with CLI args, logging, error handling, and accessible selectors
+- **Goal Lock** — agent registers goal, task plan, and done criteria before any browser action. Re-reads at every phase transition to prevent drift.
+- **Proportional recon** — SKIP for simple tasks (1 snapshot), LIGHT for unknown pages, FULL only for multi-page auth-gated flows
+- **Pattern Recognition** — generalizes repeating patterns to code loops after 2 iterations. Prevents visiting all 50 pages via MCP.
+- **Snapshot-first observation** — accessibility tree (~2-5KB) as primary tool, screenshots (~100KB+) only for visual layout, debug escalation, or final delivery
+- **Layered debugging** — Quick Check (1 step) before Full Investigation (4 steps). Searches Playwright docs autonomously after 2 failures.
+- **Production-grade output** — class-based scripts with CLI args, logging, error handling, and accessible selectors
 
-[See the full showcase &rarr;](skills/playwright-autopilot/README.md)
+| Variant | Language | Runtime | Skill |
+|---------|----------|---------|-------|
+| [playwright-autopilot](skills/playwright-autopilot/SKILL.md) | Python | `python script.py` | `playwright.sync_api`, argparse, logging |
+| [playwright-autopilot-ts](skills/playwright-autopilot-ts/SKILL.md) | TypeScript | `npx tsx script.ts` | async/await, zero deps beyond playwright |
+
+[See the Python showcase &rarr;](skills/playwright-autopilot/README.md) &nbsp;|&nbsp; [See the TypeScript docs &rarr;](skills/playwright-autopilot-ts/README.md)
 
 ## Installation
 
@@ -55,7 +70,7 @@ graph LR
 Clone this repo and copy the pre-built skill for your platform:
 
 ```bash
-git clone https://github.com/aghaawais/skill-factory.git
+git clone https://github.com/aghaPathan/skill-factory.git
 ```
 
 **Claude Code:**
