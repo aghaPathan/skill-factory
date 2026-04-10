@@ -8,7 +8,7 @@ const README_PATH = "README.md";
 const START_MARKER = "<!-- CATALOG:START -->";
 const END_MARKER = "<!-- CATALOG:END -->";
 
-function generateCatalogFromSkills(skills: ParsedSkill[]): string {
+export function generateCatalogFromSkills(skills: ParsedSkill[]): string {
   const sorted = [...skills].sort((a, b) => a.skillName.localeCompare(b.skillName));
 
   const rows: string[] = [];

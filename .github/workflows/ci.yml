@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Validate skill frontmatter
+        run: npm run validate
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Structural eval check
+        run: npm run eval-check
+
+  verify-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Rebuild dist/
+        run: npm run build
+
+      - name: Verify dist/ is up to date
+        run: |
+          if [ -n "$(git diff --name-only dist/)" ]; then
+            echo "ERROR: dist/ is out of date. Run 'npm run build' and commit."
+            git diff --stat dist/
+            exit 1
+          fi
+          echo "dist/ is up to date"

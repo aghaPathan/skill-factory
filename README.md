@@ -21,7 +21,7 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 
 ## Featured Skills
 
-### Playwright Autopilot v3 — Anti-Drift Architecture
+### Playwright Autopilot v3 — Anti-Drift Prompt Design
 
 > Your AI agent locks a goal, explores a live browser, builds the script one action at a time, and stops when done.
 
@@ -47,6 +47,8 @@ graph LR
     J -->|Fixed| C
     J -->|2 failures| K[Search Docs Autonomously]
 ```
+
+> **Note:** This flow is enforced via structured prompt instructions, not runtime code. The agent follows these steps because the skill's rules direct it to — compliance depends on the LLM's instruction-following capability.
 
 **Why it's different:**
 - **Goal Lock** — agent registers goal, task plan, and done criteria before any browser action. Re-reads at every phase transition to prevent drift.
@@ -119,6 +121,18 @@ author: github-username             # Optional — contributor attribution
 ---
 ```
 
+## Development
+
+```bash
+npm install          # Install dependencies
+npm run validate     # Check skill frontmatter + platform compatibility
+npm run eval-check   # Structural checks on SKILL.md content
+npm test             # Run unit tests (27 tests across adapters, validation, catalog)
+npm run build        # Generate dist/ files + update README catalog
+```
+
+CI runs all of the above on every PR via GitHub Actions, plus verifies `dist/` is up to date.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
@@ -126,8 +140,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 Quick start:
 1. Create `skills/<your-skill>/SKILL.md` with frontmatter
 2. Add `evals/evals.json` with test cases
-3. Run `npm run build` to generate dist/ files
-4. Submit a PR
+3. Run `npm run validate && npm run eval-check && npm test`
+4. Run `npm run build` to generate dist/ files
+5. Submit a PR
 
 ## License
 
