@@ -13,15 +13,27 @@ skill-factory/
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
+├── vitest.config.ts                 # Test configuration
+├── .github/
+│   ├── workflows/ci.yml             # CI pipeline (validate, test, eval-check, dist verify)
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── ISSUE_TEMPLATE/
+│       ├── new-skill.md
+│       └── bug-report.md
 ├── src/                             # Build tooling (TypeScript)
 │   ├── build.ts                     # Main build orchestrator
-│   ├── validate.ts                  # Frontmatter validator
+│   ├── validate.ts                  # Frontmatter + platform compatibility validator
+│   ├── validate.test.ts             # Validation unit tests
 │   ├── catalog.ts                   # README catalog generator
+│   ├── catalog.test.ts              # Catalog unit tests
+│   ├── eval-check.ts                # Structural SKILL.md content checker
 │   └── platforms/                   # Platform adapters
 │       ├── base.ts
 │       ├── claude-code.ts
 │       ├── gemini-cli.ts
-│       └── codex-cli.ts
+│       ├── codex-cli.ts
+│       ├── index.ts
+│       └── adapters.test.ts         # Adapter unit tests
 ├── skills/                          # Source of truth — one dir per skill
 │   └── <skill-name>/
 │       ├── SKILL.md
@@ -40,10 +52,12 @@ skill-factory/
 ## Contributor Workflow
 
 1. Create or edit `skills/<name>/SKILL.md`
-2. Run `npm run validate` to check frontmatter
-3. Run `npm run build` to regenerate dist/ and README catalog
-4. Commit both `skills/` and `dist/` changes
-5. Submit PR
+2. Run `npm run validate` to check frontmatter + platform compatibility
+3. Run `npm run eval-check` to verify structural content
+4. Run `npm test` to run unit tests
+5. Run `npm run build` to regenerate dist/ and README catalog
+6. Commit both `skills/` and `dist/` changes
+7. Submit PR (CI runs all checks automatically)
 
 ## What Gets Committed
 
@@ -86,3 +100,5 @@ skill-factory/
 - Build tooling is TypeScript in src/
 - Keep SKILL.md focused and actionable — instructions for AI agents
 - Evals should cover primary use cases (3+ test cases per skill)
+- All build tooling changes must have unit tests (vitest)
+- CI must pass before merging: validation, tests, eval-check, dist freshness
