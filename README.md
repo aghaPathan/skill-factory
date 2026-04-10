@@ -21,7 +21,7 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 
 ## Featured Skills
 
-### Playwright Autopilot v3 — Anti-Drift Architecture
+### Playwright Autopilot v3 — Anti-Drift Prompt Design
 
 > Your AI agent locks a goal, explores a live browser, builds the script one action at a time, and stops when done.
 
@@ -47,6 +47,8 @@ graph LR
     J -->|Fixed| C
     J -->|2 failures| K[Search Docs Autonomously]
 ```
+
+> **Note:** This flow is enforced via structured prompt instructions, not runtime code. The agent follows these steps because the skill's rules direct it to — compliance depends on the LLM's instruction-following capability.
 
 **Why it's different:**
 - **Goal Lock** — agent registers goal, task plan, and done criteria before any browser action. Re-reads at every phase transition to prevent drift.
