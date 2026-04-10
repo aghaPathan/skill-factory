@@ -6,8 +6,9 @@ export class CodexCliAdapter implements PlatformAdapter {
   readonly installPath = "project root or ~/.codex/";
 
   transform(skill: ParsedSkill): OutputFile[] {
+    const safeName = String(skill.frontmatter.name).replace(/^#+\s*/, "").trim();
     const header = [
-      `# ${skill.frontmatter.name}`,
+      `# ${safeName}`,
       "",
       ...String(skill.frontmatter.description).split("\n").map((l) => `> ${l}`),
       "",

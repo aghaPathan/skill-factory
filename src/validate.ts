@@ -18,8 +18,17 @@ async function validate(): Promise<void> {
 
   for (const filePath of skillFiles) {
     const skillName = basename(dirname(filePath));
-    const raw = readFileSync(filePath, "utf-8");
-    const { data } = matter(raw);
+
+    let data: Record<string, unknown>;
+    try {
+      const raw = readFileSync(filePath, "utf-8");
+      ({ data } = matter(raw));
+    } catch (e) {
+      console.error(`\nValidating: ${skillName}`);
+      console.error(`  ERROR: Failed to read/parse: ${e instanceof Error ? e.message : String(e)}`);
+      hasErrors = true;
+      continue;
+    }
 
     console.log(`\nValidating: ${skillName}`);
 
@@ -49,4 +58,7 @@ async function validate(): Promise<void> {
   console.log(`\nValidation PASSED (${skillFiles.length} skill(s))`);
 }
 
-validate();
+validate().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
