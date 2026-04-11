@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push * --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean -fd*)",
+      "Bash(git checkout -- .)",
+      "Bash(git branch -D main)",
+      "Bash(git branch -D master)",
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf .git*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin master*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "bash .claude/hooks/protect-governance-files.sh"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "bash .claude/hooks/remind-build.sh"
+      }
+    ]
+  }
+}

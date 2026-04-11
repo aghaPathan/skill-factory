@@ -13,6 +13,9 @@ build/
 .serena/
 docs/
 
+# Agent memory (ephemeral, not committed)
+.claude/agent-memory/
+
 # OS
 .DS_Store
 Thumbs.db
