@@ -43,10 +43,16 @@ const PLATFORM_SPECIFIC_PATTERNS: { pattern: RegExp; platforms: string[]; label:
   },
 ];
 
+export interface PlatformCompatResult {
+  errors: string[];
+  warnings: string[];
+}
+
 export function checkPlatformCompatibility(
   body: string,
   declaredPlatforms: string[]
-): string[] {
+): PlatformCompatResult {
+  const errors: string[] = [];
   const warnings: string[] = [];
 
   for (const p of declaredPlatforms) {
@@ -59,14 +65,14 @@ export function checkPlatformCompatibility(
     if (pattern.test(body)) {
       const unsupported = declaredPlatforms.filter((p) => !platforms.includes(p));
       if (unsupported.length > 0) {
-        warnings.push(
-          `References ${label} but targets ${unsupported.join(", ")} — these platforms may not support these tools`
+        errors.push(
+          `References ${label} but targets ${unsupported.join(", ")} — these platforms do not support these tools. Restrict platforms: to [${platforms.join(", ")}] or remove the tool references.`
         );
       }
     }
   }
 
-  return warnings;
+  return { errors, warnings };
 }
 
 async function validate(): Promise<void> {
@@ -115,9 +121,13 @@ async function validate(): Promise<void> {
       }
     }
 
-    const platformWarnings = checkPlatformCompatibility(content, Array.isArray(data.platforms) ? data.platforms : []);
-    for (const w of platformWarnings) {
-      console.warn(`  PLATFORM: ${w}`);
+    const platformResult = checkPlatformCompatibility(content, Array.isArray(data.platforms) ? data.platforms : []);
+    for (const w of platformResult.warnings) {
+      console.warn(`  PLATFORM WARN: ${w}`);
+    }
+    for (const e of platformResult.errors) {
+      console.error(`  PLATFORM ERROR: ${e}`);
+      hasErrors = true;
     }
   }
 

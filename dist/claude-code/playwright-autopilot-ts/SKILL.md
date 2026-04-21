@@ -17,8 +17,6 @@ tags:
   - typescript
 platforms:
   - claude-code
-  - gemini-cli
-  - codex-cli
 author: aghaPathan
 ---
 
