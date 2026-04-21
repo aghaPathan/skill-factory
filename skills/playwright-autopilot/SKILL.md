@@ -1,378 +1,142 @@
 ---
 name: playwright-autopilot
 description: Use when user asks to "automate" a browser task, "write a playwright script", or explicitly mentions playwright automation. Do NOT trigger on general web scraping, testing, or form-filling mentions unless playwright/automation is explicitly referenced. Do NOT trigger on Playwright test writing (use TDD skill instead).
-version: 3.1.0
-tags: [browser, automation, playwright, scraping, mcp]
-platforms: [claude-code, gemini-cli, codex-cli]
+version: 4.0.0
+tags: [browser, automation, playwright, scraping, mcp, subagent, mentor-consultation]
+platforms: [claude-code]
 author: aghaPathan
 ---
 
 # Playwright Autopilot
 
-Autonomously builds production-grade Python Playwright scripts by exploring web pages via MCP browser tools and translating each verified action into code.
+Dispatcher skill. Your job (as the main thread) is to **mentor** the `domain-playwright-lead` subagent while it builds a production-grade Python Playwright script by driving MCP browser tools one verified action at a time.
+
+You hand the task to the agent, answer its questions, enforce the round-trip ceiling, and present its final script back to the user.
+
+## Platform Support
+
+**Claude Code only (v4.x).**
+
+v4.0.0 dropped `gemini-cli` and `codex-cli` from `platforms:`. The mentor-consultation pattern requires subagent dispatch (project-scoped agents under `.claude/agents/` invoked via the `Agent` tool), which is a Claude Code construct. Other platforms can't spawn the `domain-playwright-lead` agent, so shipping them the dispatcher would be broken-on-arrival.
+
+If you need Gemini CLI or Codex CLI support, pin this skill at tag `v3.1.0` — that release kept everything inline in the skill body and worked on all three platforms. It has no mentor-consultation safety net, so weigh the tradeoff.
+
+## What's New in 4.0
+
+- **`domain-playwright-lead` agent** (`.claude/agents/domain-playwright-lead.md`) owns all MCP browser work, recon, incremental scripting, and layered debug.
+- **Mentor consultation protocol.** When the agent hits ambiguity (selector collisions, missing credentials, intent unclear, layout drift, 3 failed debug attempts), it emits a `NEEDS_MENTOR` block and stops. The mentor (you, the main thread) answers from context and respawns it.
+- **Deadlock counter owned by the mentor** (not the agent). Hashed on `(checkpoint + blocker_category)`, not raw question text.
+- **Explicit ceiling:** max 10 mentor round-trips per session OR 3 deadlocks → `ESCALATE_USER`.
+- **Session state** at `.claude/agent-memory/domain-playwright-lead/sessions/<id>/state.json`. Gitignored.
+- **Platform scope narrowed** to `claude-code` (see above).
 
 ## Hard Rules
 
-- **ALWAYS register your goal** (Goal Lock) before any browser action. No exceptions.
-- **ALWAYS use Playwright** via MCP browser tools. Never substitute with requests, BeautifulSoup, httpx, or any non-browser approach. The user asked for Playwright — deliver Playwright.
-- **ALWAYS use `browser_snapshot`** (accessibility tree) as primary observation. Screenshots only for: visual verification, debug escalation, or final delivery.
-- **ALWAYS build the script incrementally** — one MCP action at a time, translating each to Python. Never write the full script upfront.
-- **ALWAYS use the class-based template** below. No flat functions, no procedural scripts.
-- **ALWAYS save scripts to `./playwright-scripts/`** and screenshots to `./playwright-screenshots/`.
-- **NEVER hardcode credentials** — not even as "fallback defaults." Use `os.environ["VAR"]` with no default. Document required env vars in the script docstring.
+- **Always spawn the agent.** Do not drive MCP browser tools yourself from the main thread. Dispatcher only.
+- **Always generate a `session_id`** before dispatch (`<yyyymmddHHMMSS>-<short-hash>`) and include it in the agent's prompt.
+- **Always auto-answer the agent's questions from the user's stated goal + prior conversation turns when the answer is unambiguous.** Ask the human only when inference would be a guess, or when a deadlock triggers escalation.
+- **Never forward secrets into the agent's prompt** unless the user explicitly authorized it for this session. If the agent asks for credentials, ask the user for env-var names, not values.
+- **Never bypass the `NEEDS_MENTOR` contract** — do not keep running if the agent returned a consultation block.
+- **Always enforce the LIMIT**: 10 round-trips OR 3 deadlocks → escalate to human.
 
-## Goal Lock (Before Anything Else)
+## Goal Lock
 
-Before ANY browser action, write this block in your response:
+The agent owns the Goal Lock (GOAL / TASK PLAN / DONE WHEN). You capture the user's stated goal and target URL in the first dispatch prompt. If the user's request is under-specified (no URL, no concrete outcome), ask one clarifying question to the user **before** spawning the agent. Do not delegate intent-gathering to the agent unless the ambiguity is only discoverable mid-flow.
 
-```
-GOAL: <one-sentence restatement of what the user wants>
-TASK PLAN:
-  [ ] 1. <sub-task>
-  [ ] 2. <sub-task>
-  ...  (2-6 sub-tasks max)
-DONE WHEN: <observable outcome, e.g., "CSV exists with >0 rows" or "script logs in and downloads report.pdf">
-```
+## Pre-flight
 
-**Rules:**
-- Re-read this block at every `→ GOAL CHECK` marker in this skill
-- Mark sub-tasks `[x]` as you complete them
-- If you catch yourself doing something not in the TASK PLAN — stop. You are drifting.
-- Do NOT add sub-tasks mid-execution unless the user's request requires it
+Before the first dispatch:
 
-→ After Goal Lock, proceed to Smart Recon.
+1. Confirm the trigger is genuine: user said "automate", "write a playwright script", or equivalent — not just "scrape" / "test".
+2. Ensure working dirs exist: `mkdir -p ./playwright-scripts ./playwright-screenshots`.
+3. Confirm MCP playwright server is connected (tools prefixed `mcp__plugin_playwright_playwright__*` are available at session level).
+4. Generate `session_id`.
+5. Record session start in a one-line note for yourself: `session <id>, goal=<goal>, url=<url or "ambiguous">`.
 
-## Smart Recon
+## Dispatch
 
-Scale reconnaissance to task complexity. Do NOT over-explore.
-
-**SKIP recon** — single-page, static content, task is obvious from the URL:
-1. `browser_navigate` to target URL
-2. `browser_snapshot` — read the accessibility tree
-3. → GOAL CHECK. Proceed to Development Loop.
-
-**LIGHT recon** — multi-element page, unknown structure:
-1. `browser_navigate` to target URL
-2. `browser_snapshot` — identify key elements, forms, navigation
-3. Note structure relevant to your TASK PLAN (ignore everything else)
-4. → GOAL CHECK. Proceed to Development Loop.
-
-**FULL recon** — multi-page flow, auth-gated, or dynamic SPA:
-1. `browser_navigate` to target URL
-2. `browser_snapshot` — map page structure
-3. If **auth gate detected**: STOP exploring. Note "authenticate first" as sub-task 1. Do NOT explore routes behind auth.
-4. Follow **2-3 routes relevant to TASK PLAN only** (not random links). `browser_snapshot` on each.
-5. `browser_network_requests` only if you need to understand API patterns for the task
-6. Note: pages, auth requirements, key interactions
-7. → GOAL CHECK. Proceed to Development Loop.
-
-**Choosing a tier:**
-
-| Start with | Upgrade to | When |
-|---|---|---|
-| SKIP | LIGHT | Snapshot reveals >5 interactive elements, forms, or navigation you didn't expect |
-| LIGHT | FULL | Task requires visiting 2+ pages, or auth gate is detected in snapshot |
-| Any | — | Never upgrade preemptively. Only upgrade after a snapshot proves you need more info. |
-
-Default to SKIP. Most tasks don't need FULL.
-
-## The Development Loop
-
-Follow this loop exactly. Every step has a purpose — do not skip.
+Spawn the agent using Claude Code's subagent-dispatch tool (the same tool invoked as `Task` or `Agent` depending on your Claude Code version — both carry a `subagent_type` parameter). Pass `subagent_type: "domain-playwright-lead"` and a prompt of the form:
 
 ```
-1. GOAL CHECK  → Re-read Goal Lock. Which sub-task am I on?
-2. NAVIGATE    → browser_navigate (skip if already on target page)
-3. OBSERVE     → browser_snapshot (primary). Screenshot ONLY if layout matters.
-4. IDENTIFY    → From snapshot, find target elements. Prefer: get_by_role > get_by_text > get_by_label > CSS > XPath
-5. ACT         → One MCP interaction (click, fill, type, select, etc.)
-6. VERIFY      → browser_snapshot to confirm action succeeded
-7. PATTERN?    → Am I repeating something I did before? (See Pattern Recognition)
-8. TRANSLATE   → Append equivalent Python line(s) to the growing script
-9. PROGRESS    → Update TASK PLAN: mark sub-task [x] if done.
-               → Is DONE WHEN met? YES → go to VALIDATE. NO → go to step 3.
+session_id=<id>
+GOAL: <one-sentence user goal>
+URL: <target url, or "ambiguous — ask mentor">
+ENV NOTES: <any auth / env hints the user provided, or "none">
 ```
 
-**Step 8 is critical.** After each MCP action, immediately write the Python equivalent. Do not batch.
+Keep the prompt tight. The agent's body already contains Hard Rules, Goal Lock, Smart Recon, Development Loop, Layered Debug, and Script Quality Standards. You do not restate them.
 
-**Step 9 is the exit gate.** When DONE WHEN is met, STOP and go to VALIDATE. Do not add features the user didn't request.
+## Mentor Loop (state machine)
 
-**Guard conditions (violations = Red Flag):**
-- Cannot ACT without OBSERVE: If your last tool call was NOT `browser_snapshot`, you must snapshot before acting. Blind clicking leads to wrong-element errors.
-- Cannot TRANSLATE without VERIFY: If you wrote Python code for an action you did not verify succeeded via snapshot, delete it. Unverified code is wrong code.
-- Cannot skip GOAL CHECK: Every loop iteration starts with "Which sub-task am I on?" If you cannot answer, STOP and re-read Goal Lock.
+Round-trip budget: **10 per session**. Deadlock budget: **3** (whichever hits first).
 
-## Pattern Recognition
+Counter lives in your conversation — never in `state.json`.
 
-After step 6 (VERIFY), ask yourself:
+```
+round_trips = 0
+deadlocks = 0
+last_question_key = null   # (checkpoint, blocker_category)
 
-> "Am I repeating a pattern I've seen before?"
-> (e.g., pagination, iterating list items, processing table rows, filling repeated form sections)
+while true:
+    response = dispatch_subagent(subagent_type="domain-playwright-lead", prompt=prompt)
+    round_trips += 1
+    if round_trips > 10: → ESCALATE_USER (limit)
 
-- **YES, after 2+ iterations of the same pattern:**
-  STOP iterating via MCP. Write a Python loop that generalizes the pattern.
-  Use data from your 2 iterations as the template (selectors, structure, navigation).
-  Move to step 8 (TRANSLATE) with the loop code.
-  *(Why 2: First iteration discovers the structure. Second confirms it repeats identically. More iterations waste tokens without new information.)*
+    parse response:
 
-- **NO:** Continue to step 8 normally.
+    case DONE:
+        smoke_check(script_path)    # python -m py_compile
+        present to user: script path, screenshots, data output, summary
+        return
 
-This prevents exhaustive exploration of paginated content (50 pages via MCP = 200K+ wasted tokens).
+    case ESCALATE_USER:
+        surface agent's reason + history + checkpoint to the user verbatim
+        return
 
-## Observation Strategy
+    case NEEDS_MENTOR:
+        key = (response.checkpoint, response.blocker_category)
+        if key == last_question_key OR response.deadlock_equivalent_to is set:
+            deadlocks += 1
+        else:
+            deadlocks = 0
+        last_question_key = key
 
-**Primary tool: `browser_snapshot`** (accessibility tree, ~2-5KB)
-Use for ALL observation, element identification, and action verification.
+        if deadlocks >= 3:
+            ask human the question verbatim (with option block + history)
+            inject human's answer, reset deadlocks = 0
+        else:
+            try to auto-answer from (original user goal, prior turns, session notes)
+            if confidence is low:
+                ask human (counts as fresh resolution, not a deadlock)
 
-**Secondary tool: `browser_take_screenshot`** (~100KB+)
-Use ONLY for:
-1. **Visual layout** — CSS issues, positioning, charts, images
-2. **Debug escalation** — snapshot shows element but action still fails
-3. **Final delivery** — one screenshot of the completed result for the user
-
-**Alert mode** — snapshot + screenshot after EVERY action. Triggered when:
-- Expected element not found in snapshot
-- Any action fails unexpectedly
-- Return to snapshot-only after 2 consecutive successes
-
-Save screenshots to `./playwright-screenshots/` with step names: `step_01_navigate.png`, `step_02_fill_login.png`, etc.
-
-## Layered Debug Protocol
-
-When any action fails, use the **minimum investigation needed**. Do NOT run all 5 tools for every failure.
-
-### Quick Check (try this first)
-
-1. **PAUSE** → Stop. Do not retry blindly.
-2. **SNAPSHOT** → `browser_snapshot` — is the element present? Wrong state? Hidden?
-3. **HYPOTHESIZE** → ONE theory based on the snapshot
-4. **FIX** → ONE targeted fix
-5. **VERIFY** → `browser_snapshot` to confirm
-6. → If fixed: **GOAL CHECK** → resume Development Loop at current sub-task
-
-### Full Investigation (if Quick Check failed)
-
-1. **SCREENSHOT** → `browser_take_screenshot` — visual state
-2. **CONSOLE** → `browser_console_messages` — JS errors?
-3. **NETWORK** → `browser_network_requests` — failed API calls (4xx/5xx)?
-4. **EVALUATE** → `browser_evaluate` — test selector: `document.querySelector('...')`, check `el.disabled`, `el.offsetParent`, shadow roots
-5. **HYPOTHESIZE** → ONE theory from all gathered evidence
-6. **FIX** → ONE targeted fix
-7. **VERIFY** → `browser_snapshot` to confirm
-8. → If fixed: **GOAL CHECK** → resume Development Loop at current sub-task
-
-### Fast Escapes (skip hypotheses entirely)
-
-| Symptom | Action |
-|---------|--------|
-| "Invalid credentials" / 401 / 403 | Ask user for correct credentials immediately |
-| CAPTCHA detected | Stop. Show user. Add `input("Solve CAPTCHA...")` to script |
-| Stale page / expired session | `page.reload()` then retry once |
-| Element inside iframe | Use `page.frame_locator(selector)` |
-| Element in Shadow DOM | Use `browser_evaluate` with `el.shadowRoot.querySelector()` |
-
-### Escalation
-
-- After **2 failed Full Investigations** → search Playwright docs autonomously (via context7 or WebSearch)
-- After docs search fails → show user the snapshot + all approaches tried, ask for guidance
-- Do NOT ask permission to search Playwright documentation — it's a safe action
-
-## Script Template
-
-Every generated script MUST follow this structure:
-
-```python
-#!/usr/bin/env python3
-"""<What this script automates>
-
-Usage:
-    python <name>.py [--headed] [--verbose] [--url URL]
-
-Environment Variables:
-    <VAR_NAME>: <purpose>  # TODO: list required env vars
-"""
-
-import argparse
-import logging
-import os
-import sys
-from datetime import datetime
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
-
-# ── Configuration ──
-TARGET_URL = "<url>"  # TODO: replace with actual URL
-OUTPUT_PATH = "./output.csv"
-TIMEOUT_MS = 30000
-
-logger = logging.getLogger(__name__)
-
-
-class AutomationName:  # TODO: rename to descriptive class name
-    """<Description>"""
-
-    def __init__(self, headless: bool = True, timeout: int = TIMEOUT_MS):
-        self.headless = headless
-        self.timeout = timeout
-        self.playwright = None
-        self.browser = None
-        self.context = None
-        self.page = None
-
-    def setup(self):
-        """Launch browser and create page context."""
-        os.makedirs("./playwright-screenshots", exist_ok=True)
-        os.makedirs("./playwright-scripts", exist_ok=True)
-        self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=self.headless)
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
-        self.page.set_default_timeout(self.timeout)
-
-    def teardown(self):
-        """Close browser and cleanup resources."""
-        if self.context:
-            self.context.close()
-        if self.browser:
-            self.browser.close()
-        if self.playwright:
-            self.playwright.stop()
-
-    def _retry(self, action, max_attempts=3):
-        """Retry flaky interactions with increasing timeout."""
-        for attempt in range(1, max_attempts + 1):
-            try:
-                self.page.set_default_timeout(self.timeout * attempt)
-                return action()
-            except PlaywrightTimeout:
-                if attempt == max_attempts:
-                    raise
-                logger.warning(f"Attempt {attempt}/{max_attempts} failed, retrying...")
-        self.page.set_default_timeout(self.timeout)
-
-    def step_01_navigate(self):
-        """Navigate to target page."""
-        self.page.goto(TARGET_URL, wait_until="domcontentloaded")
-        # For dynamic content, add: self.page.wait_for_selector("selector")
-
-    # Add step_NN_<action> methods as you build the script
-
-    def run(self):
-        """Execute all steps in sequence."""
-        try:
-            self.setup()
-            self.step_01_navigate()
-            # ... call all steps
-        except PlaywrightTimeout as e:
-            logger.error(f"Timeout at step: {e}")
-            if self.page:
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.page.screenshot(path=f"./playwright-screenshots/error_{ts}.png")
-            raise
-        except Exception as e:
-            logger.error(f"Automation failed: {e}")
-            if self.page:
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                self.page.screenshot(path=f"./playwright-screenshots/error_{ts}.png")
-            raise
-        finally:
-            self.teardown()
-
-
-def main():
-    parser = argparse.ArgumentParser(description="<Description>")
-    parser.add_argument("--headed", action="store_true", help="Run with visible browser")
-    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
-    parser.add_argument("--url", default=TARGET_URL, help="Target URL")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-    )
-
-    automation = AutomationName(headless=not args.headed)  # TODO: rename
-    automation.run()
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception:
-        sys.exit(1)
+        prompt = f"RESUME session {id}. Mentor answer: {answer}. Continue from checkpoint {response.checkpoint}."
+        continue
 ```
 
-## Quality Checklist
+Auto-answer heuristic: if the answer is already stated or obviously implied by the user's prior messages, answer silently. If it requires any new information the user hasn't given (new credentials, a specific target among plausible alternatives, a policy decision), ask the human.
 
-| Requirement | Rule |
-|---|---|
-| **Selectors** | `get_by_role()`, `get_by_text()`, `get_by_label()`, `get_by_placeholder()` first. CSS/XPath only as fallback. |
-| **Waits** | `wait_until="domcontentloaded"` for navigation. `page.wait_for_selector()` or `expect(locator).to_be_visible()` before interactions on dynamic pages. NEVER `time.sleep()`. |
-| **Retries** | Wrap flaky interactions in `_retry()` method (max 3 attempts, increasing timeout). See template. |
-| **Error handling** | Catch `PlaywrightTimeout`, log URL + selector + step name, re-raise with context. |
-| **Credentials** | `os.environ["VAR"]` — no default values, no fallbacks. Document in docstring. |
-| **Logging** | Use `logging` module. Quiet by default, `--verbose` enables DEBUG. Never bare `print()`. |
-| **CLI args** | argparse with `--headed`, `--verbose`, `--url`. |
-| **Data output** | Tabular → CSV. Nested/hierarchical → JSON. |
-| **Patterns** | Paginated/repeated content → Python loop after 2 MCP iterations. Never visit all pages via MCP. |
-| **Data validation** | Assert output is non-empty before writing. Log row count. For CSV: verify header matches expectations. For JSON: validate structure. |
-| **Rate limiting** | Add `page.wait_for_timeout(500)` between repeated page loads (pagination, list iteration). Never use `time.sleep()` — Playwright's wait is non-blocking. |
+## Hand-off
 
-## Edge Cases
+When the agent returns `DONE`:
 
-| Scenario | Pattern |
-|---|---|
-| **Multi-tab** | `context.on("page", handler)` to catch new tabs. `page = context.pages[-1]` to switch. |
-| **File downloads** | `accept_downloads=True` on context (set in `setup()`). `download = page.expect_download()` before click. `download.value.save_as(path)`. |
-| **File uploads** | `page.set_input_files(selector, path)` or `locator.set_input_files(path)`. |
-| **iframes** | `page.frame_locator(selector)` to target iframe content. |
-| **Shadow DOM** | `browser_evaluate` with `el.shadowRoot.querySelector()` to pierce shadow roots. Snapshots cannot see shadow-rooted elements. |
-| **SPAs / dynamic content** | Use `wait_until="domcontentloaded"` + `page.wait_for_selector()`. Do NOT rely on `networkidle` (hangs on WebSockets, polling, analytics). |
-| **CAPTCHAs** | Stop. Show user. `input("Solve CAPTCHA and press Enter...")` + comment in script. |
-| **Bot detection** | Set realistic user-agent: `browser.new_context(user_agent="...")`. Add `--user-agent` CLI arg for configurability. |
-| **Output collision** | Log a warning if output file already exists before overwriting. Overwrite is expected — warn, don't crash. |
-
-## Context Budget
-
-Long sessions exhaust the context window, causing drift. Stay lean:
-
-- **Snapshot-first** saves 50-80% of observation tokens vs screenshots
-- **Proportional recon** — SKIP tier for simple tasks (1 snapshot, not 5 pages)
-- **Pattern Recognition** — generalize after 2 iterations, don't explore all pages
-- **Layered Debug** — Quick Check first (1 tool call), not Full Investigation (4 tool calls)
-- After 2 debug cycles on the same issue → escalate to user or docs
-- If you notice yourself losing track → re-read Goal Lock, summarize progress
-
-**Hard limits:**
-- Maximum **5 screenshots** per session (each ~100KB = ~25K tokens)
-- Maximum **3 Full Investigation** cycles before escalating to user
-- Maximum **15 Development Loop** cycles total. If not done, reassess TASK PLAN scope.
-- If **>20 MCP tool calls** without completing a sub-task, something is wrong. STOP and re-read Goal Lock.
-
-## Validation Protocol
-
-After building the script, you MUST:
-
-1. Save to `./playwright-scripts/<descriptive_name>.py`
-2. Create `./playwright-scripts/requirements.txt`: `playwright>=1.40`
-3. Create output dirs: `mkdir -p ./playwright-scripts ./playwright-screenshots`
-4. Run: `python ./playwright-scripts/<name>.py --headed --verbose`
-5. If fails → read error, apply Layered Debug to the script (not MCP), re-run (max 3 attempts)
-6. If passes → present script to user with: what it does, where it's saved, how to run it, how to install deps
+1. Smoke-check the script: `python -m py_compile <path>` (syntax only, no execution).
+2. Skim the script for hardcoded credentials, `time.sleep`, flat-function structure, `print()`. If any appear, return the agent with a `NEEDS_MENTOR`-style correction prompt: `"RESUME session <id>. Code review: <issues>. Fix and return DONE."` (costs a round-trip but is worth it.)
+3. Present to the user: what the script does, path, env vars required, run command, where output goes.
 
 ## Red Flags — STOP If You Think This
 
 | Thought | Reality |
 |---|---|
-| "Playwright is overkill, use requests" | User asked for Playwright. Deliver Playwright. |
-| "I'll write the whole script first" | Build incrementally via MCP. One action at a time. |
-| "Flat function is simpler" | Use the class template. Always. |
-| "Hardcoded fallback is fine for demo sites" | No defaults on credentials. Ever. |
-| "I'll save it in the current directory" | `./playwright-scripts/` only. |
-| "print() is good enough" | Use `logging` module with `--verbose`. |
-| "I don't need argparse for this" | Every script gets `--headed`, `--verbose`, `--url`. |
-| "I need to explore more before starting" | Recon is proportional. Default to SKIP. Start working. |
-| "Let me just retry with a different selector" | Follow Layered Debug. Quick Check before Full Investigation. |
-| "Let me take a screenshot to be sure" | Snapshot first. Screenshots only for 3 specific cases. |
-| "I'll visit every page to see the data" | Generalize to a Python loop after 2 iterations. |
-| "This is unrelated but interesting" | Re-read Goal Lock. If it's not in TASK PLAN, don't do it. |
-| "I should add error handling for edge case X" | Only handle edge cases relevant to DONE WHEN. No speculative code. |
+| "I'll just drive the browser myself, it's faster" | Dispatcher only. The agent's isolation and tool whitelist are features, not overhead. |
+| "The agent's question is minor, I'll guess" | Guessing is the exact failure mode the mentor protocol exists to prevent. Answer from evidence or ask the user. |
+| "One more round-trip won't hurt" | 10 is the ceiling. Past it, escalate. |
+| "Same question again, I'll rephrase the answer" | That's a deadlock. Count it. |
+| "I'll pass the password through the prompt" | Env var names only, never values. |
+| "The script looks fine, skip the smoke check" | `py_compile` is cheap. Run it. |
+
+## References
+
+- Agent definition: `.claude/agents/domain-playwright-lead.md`
+- Session state dir: `.claude/agent-memory/domain-playwright-lead/sessions/<id>/` (gitignored; agent auto-creates)
+- Output dirs: `./playwright-scripts/`, `./playwright-screenshots/` (gitignored via `*-scripts/` / `*-screenshots/` patterns)
+- Evals: `skills/playwright-autopilot/evals/evals.json`

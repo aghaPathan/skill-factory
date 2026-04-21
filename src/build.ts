@@ -9,6 +9,21 @@ import { injectCatalog } from "./catalog.js";
 const DIST_DIR = "dist";
 const SKILLS_DIR = "skills";
 
+/**
+ * Decide whether a skill should be emitted for a given platform.
+ * - No `platforms:` field → emit everywhere (backwards compatible default).
+ * - Non-empty array → emit only to listed platforms.
+ * - Empty array → emit nowhere (treated as explicit opt-out).
+ */
+export function shouldEmitForPlatform(
+  skill: ParsedSkill,
+  platformId: string
+): boolean {
+  const declared = skill.frontmatter.platforms;
+  if (!Array.isArray(declared)) return true;
+  return declared.includes(platformId);
+}
+
 async function build(): Promise<void> {
   // 1. Discover skills
   const skillFiles = await glob(`${SKILLS_DIR}/*/SKILL.md`);
@@ -95,6 +110,10 @@ async function build(): Promise<void> {
     console.log(`Platform: ${platform.displayName}`);
 
     for (const skill of skills) {
+      if (!shouldEmitForPlatform(skill, platform.platformId)) {
+        console.log(`  skip: ${skill.skillName} (not targeted)`);
+        continue;
+      }
       const outputs = platform.transform(skill);
 
       for (const output of outputs) {
@@ -122,7 +141,10 @@ async function build(): Promise<void> {
   );
 }
 
-build().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  build().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

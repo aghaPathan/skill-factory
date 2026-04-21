@@ -94,3 +94,19 @@ npm run build        # Verify build still works
 2. Add to the `PLATFORMS` array in `src/platforms/index.ts`
 3. Run `npm run build` to verify
 4. Update README.md install instructions for the new platform
+
+### Platform Targeting via `platforms:` Frontmatter
+
+`platforms:` in SKILL.md frontmatter is a **build filter**. The build only emits a skill to platforms listed in its `platforms:` array. If the field is omitted, the skill is emitted to all registered platforms.
+
+Use this to narrow scope when a skill depends on platform-specific capabilities — e.g., `playwright-autopilot` is `[claude-code]` only because its mentor-consultation pattern requires Claude Code subagent dispatch.
+
+## Companion Agents (Claude Code)
+
+A skill may ship a companion subagent under `.claude/agents/<agent-name>.md`. Claude Code auto-discovers project-scoped agents, so cloning the repo makes the agent available without extra install steps.
+
+The canonical pattern is **mentor consultation**: the skill (running on the main thread) acts as dispatcher + mentor, and the companion agent does the domain work. When the agent hits ambiguity, it returns a `NEEDS_MENTOR` block with `session_id`, `checkpoint`, `blocker_category`, and an options list. The mentor auto-answers from conversation context when inferable, otherwise asks the human user. A deadlock counter — owned by the mentor, hashed on `(checkpoint + blocker_category)` — plus a round-trip ceiling (default: 10 round-trips OR 3 deadlocks → `ESCALATE_USER`) prevents runaway loops.
+
+Reference implementation: `skills/playwright-autopilot/SKILL.md` + `.claude/agents/domain-playwright-lead.md`.
+
+Companion agents are **Claude-Code-specific**. Any skill shipping one should set `platforms: [claude-code]` and document the narrowing in its body.

@@ -1,6 +1,6 @@
 # Playwright Autopilot
 
-**Your AI agent explores a live browser and hands you the Python script that reproduces every action.**
+**Your AI agent explores a live browser and hands you the Python script that reproduces every action — and asks for help instead of guessing when it hits a branch it can't resolve.**
 
 ## What It Does
 
@@ -8,9 +8,21 @@ Playwright Autopilot turns your AI coding agent into a browser automation engine
 
 The result is a production-grade, class-based Python script that's been validated against the live site before you ever run it.
 
-## v3 Architecture — Anti-Drift Design
+## v4 — Companion Agent with Mentor Consultation (current)
 
-v3 is a complete architectural rewrite focused on keeping the agent **on-task**. Every mechanism exists to prevent the agent from wandering away from your goal.
+v4 splits the skill into a **dispatcher** (main thread, mentor) and a **companion subagent** (`domain-playwright-lead`) that owns all MCP browser work.
+
+- The agent's tool whitelist is restricted to `mcp__plugin_playwright_playwright__*` plus Read/Write/Edit/Bash/Glob/Grep. There is no path to `requests`, `httpx`, or BeautifulSoup — the runtime blocks it, not just the prose.
+- When the agent hits ambiguity — two selectors match, credentials are missing, intent is unclear, layout drifted, or three debug attempts failed — it returns a structured `NEEDS_MENTOR` block with `session_id`, `checkpoint`, `blocker_category`, and an options list. It stops and waits.
+- The mentor (skill, running on the main thread) auto-answers from the original user goal and prior turns when the answer is inferable; otherwise it asks the human. Then it respawns the agent with `RESUME session <id>. Mentor answer: …`.
+- A deadlock counter — owned by the mentor, hashed on `(checkpoint + blocker_category)` — plus a hard ceiling of **10 round-trips OR 3 deadlocks → escalate to user** prevents runaway loops.
+- Session state lives at `.claude/agent-memory/domain-playwright-lead/sessions/<id>/state.json` (gitignored; the agent auto-creates the dir on first use).
+
+**Platforms:** Claude Code only. Mentor consultation requires project-scoped subagent dispatch, which Gemini CLI and Codex CLI don't support. The `platforms:` field in frontmatter is a real build filter, so `dist/gemini-cli/playwright-autopilot/` and `dist/codex-cli/playwright-autopilot/` are intentionally absent. If you need cross-platform inline support, pin tag `v3.1.0`.
+
+## v3 Architecture — Anti-Drift Design (now lives inside the agent)
+
+Everything below was v3's anti-drift playbook. In v4 these principles are preserved verbatim — they've just moved into `.claude/agents/domain-playwright-lead.md` so they're the agent's standing instructions rather than instructions the main thread has to re-rehearse on every invocation.
 
 ### Goal Lock
 
@@ -124,19 +136,23 @@ graph LR
 
 ## Quick Install
 
-**Claude Code:**
+**Claude Code (only platform supported in v4):**
+
 ```bash
+# 1. Copy the skill
 cp -r skills/playwright-autopilot ~/.claude/skills/
+
+# 2. Copy the companion agent
+mkdir -p ~/.claude/agents
+cp .claude/agents/domain-playwright-lead.md ~/.claude/agents/
 ```
 
-**Gemini CLI:**
-```bash
-cp -r skills/playwright-autopilot ~/.gemini/skills/
-```
+Or, simpler: run Claude Code from inside the cloned `skill-factory/` directory. Claude Code auto-discovers project-scoped agents from `.claude/agents/`, so no install step is needed.
 
-**Codex CLI:**
+**Gemini CLI / Codex CLI:** not supported in v4. Pin `v3.1.0` (inline playbook, no companion agent):
+
 ```bash
-cp dist/codex-cli/playwright-autopilot/AGENTS.md ./AGENTS.md
+git checkout v3.1.0 -- skills/playwright-autopilot
 ```
 
 ## Prerequisites
