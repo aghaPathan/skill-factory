@@ -95,6 +95,13 @@ async function build(): Promise<void> {
     console.log(`Platform: ${platform.displayName}`);
 
     for (const skill of skills) {
+      const declared = Array.isArray(skill.frontmatter.platforms)
+        ? skill.frontmatter.platforms
+        : null;
+      if (declared && !declared.includes(platform.platformId)) {
+        console.log(`  skip: ${skill.skillName} (not targeted)`);
+        continue;
+      }
       const outputs = platform.transform(skill);
 
       for (const output of outputs) {
