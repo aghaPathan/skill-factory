@@ -18,6 +18,9 @@
     "codex-cli"
   ],
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "glob": "^13.0.6",

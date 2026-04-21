@@ -59,25 +59,28 @@ describe("validateFrontmatter", () => {
 
 describe("checkPlatformCompatibility", () => {
   it("warns on unknown platform", () => {
-    const warnings = checkPlatformCompatibility("# Skill", ["claude-code", "unknown-platform"]);
-    expect(warnings.some((w) => w.includes("Unknown platform"))).toBe(true);
+    const result = checkPlatformCompatibility("# Skill", ["claude-code", "unknown-platform"]);
+    expect(result.warnings.some((w) => w.includes("Unknown platform"))).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 
-  it("warns when MCP tools target non-Claude platforms", () => {
+  it("errors when MCP tools target non-Claude platforms", () => {
     const body = "Use browser_snapshot to observe the page";
-    const warnings = checkPlatformCompatibility(body, ["claude-code", "gemini-cli", "codex-cli"]);
-    expect(warnings.some((w) => w.includes("Playwright MCP tools"))).toBe(true);
+    const result = checkPlatformCompatibility(body, ["claude-code", "gemini-cli", "codex-cli"]);
+    expect(result.errors.some((e) => e.includes("Playwright MCP tools"))).toBe(true);
   });
 
-  it("no warnings when MCP tools target only Claude Code", () => {
+  it("no issues when MCP tools target only Claude Code", () => {
     const body = "Use browser_snapshot to observe the page";
-    const warnings = checkPlatformCompatibility(body, ["claude-code"]);
-    expect(warnings).toHaveLength(0);
+    const result = checkPlatformCompatibility(body, ["claude-code"]);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
   });
 
-  it("no warnings for generic content", () => {
+  it("no issues for generic content", () => {
     const body = "# My Skill\n\nGeneric instructions here.";
-    const warnings = checkPlatformCompatibility(body, ["claude-code", "gemini-cli"]);
-    expect(warnings).toHaveLength(0);
+    const result = checkPlatformCompatibility(body, ["claude-code", "gemini-cli"]);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
   });
 });

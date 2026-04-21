@@ -3,7 +3,7 @@ name: playwright-autopilot-ts
 description: Use when user asks to "automate" a browser task in TypeScript, "write a playwright script in TS/TypeScript", or explicitly mentions TypeScript playwright automation. Do NOT trigger on general web scraping, testing, or form-filling mentions unless playwright/automation + TypeScript is explicitly referenced. Do NOT trigger on Playwright test writing (use TDD skill instead). For Python output, use playwright-autopilot instead.
 version: 1.0.0
 tags: [browser, automation, playwright, scraping, mcp, typescript]
-platforms: [claude-code, gemini-cli, codex-cli]
+platforms: [claude-code]
 author: aghaPathan
 ---
 
