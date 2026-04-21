@@ -55,7 +55,7 @@ Before the first dispatch:
 
 ## Dispatch
 
-Spawn the agent via the `Agent` tool with `subagent_type: "domain-playwright-lead"` and a prompt of the form:
+Spawn the agent using Claude Code's subagent-dispatch tool (the same tool invoked as `Task` or `Agent` depending on your Claude Code version — both carry a `subagent_type` parameter). Pass `subagent_type: "domain-playwright-lead"` and a prompt of the form:
 
 ```
 session_id=<id>
@@ -78,7 +78,7 @@ deadlocks = 0
 last_question_key = null   # (checkpoint, blocker_category)
 
 while true:
-    response = Agent(domain-playwright-lead, prompt)
+    response = dispatch_subagent(subagent_type="domain-playwright-lead", prompt=prompt)
     round_trips += 1
     if round_trips > 10: → ESCALATE_USER (limit)
 

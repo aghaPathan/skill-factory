@@ -8,6 +8,7 @@ build/
 *-plan.md
 *-downloads/
 *-screenshots/
+*-scripts/
 
 # Local tooling
 .serena/
