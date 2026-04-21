@@ -21,47 +21,42 @@ Universal skills for AI coding agents. Each skill is a self-contained directory 
 
 ## Featured Skills
 
-### Playwright Autopilot v3 — Anti-Drift Prompt Design
+### Playwright Autopilot v4 — Companion Agent with Mentor Consultation (Python)
 
-> Your AI agent locks a goal, explores a live browser, builds the script one action at a time, and stops when done.
+> The skill is the mentor. A dedicated subagent drives the browser. When it gets confused, it **asks instead of guessing**.
 
-Most browser automation starts with writing a script and hoping it works. Playwright Autopilot flips this: the agent **registers your goal** (Goal Lock), opens a real browser via MCP tools, interacts with pages step by step, and **translates each verified action into code as it goes**. When it detects repeating patterns (pagination, table rows), it generalizes to a loop instead of exhaustively iterating. When something breaks, it follows a layered debug protocol — Quick Check first, Full Investigation only if needed.
+v4 is a structural shift. Previous versions packed the full playbook — Goal Lock, Smart Recon, pattern recognition, layered debug — into a single skill body that the main thread executed directly. v4 splits the work:
 
-Available in **Python** and **TypeScript**:
+- **The skill** (`skills/playwright-autopilot/SKILL.md`) is a dispatcher. It runs on the main thread, spawns the companion agent, answers its questions, and enforces a round-trip ceiling.
+- **The companion agent** (`.claude/agents/domain-playwright-lead.md`) owns all MCP browser work. Its tool whitelist restricts it to Playwright MCP calls only — physically preventing substitution of `requests` / `httpx` / BeautifulSoup.
+
+When the agent hits a branch it can't resolve — selector collision, missing credentials, unclear intent, layout drift, three failed debug attempts — it returns a structured `NEEDS_MENTOR` block and stops. The mentor auto-answers from the original user goal and prior conversation turns when inferable, otherwise asks the human. A deadlock counter hashed on `(checkpoint, blocker_category)` plus a hard ceiling (**10 round-trips OR 3 deadlocks → escalate**) prevents runaway loops.
 
 ```mermaid
 graph LR
-    GL[Goal Lock] --> R[Smart Recon]
-    R --> A[Navigate]
-    A --> B[Observe via Snapshot]
-    B --> C[Act via MCP]
-    C --> D[Verify via Snapshot]
-    D --> E{Repeating Pattern?}
-    E -->|Yes, 2+ times| F[Write Loop]
-    E -->|No| G[Translate to Code]
-    F --> H[Progress Check]
-    G --> H
-    H -->|Done| I[Validate & Deliver]
-    H -->|Continue| B
-    C -->|Failure| J[Layered Debug]
-    J -->|Fixed| C
-    J -->|2 failures| K[Search Docs Autonomously]
+    U[User request] --> S[Skill / Mentor]
+    S -->|Agent dispatch<br/>session_id| A[domain-playwright-lead]
+    A -->|MCP browser tools| B[Live browser]
+    A -->|NEEDS_MENTOR| S
+    S -->|auto-answer from context<br/>or ask human| A
+    A -->|DONE: script + screenshots| S
+    S -->|smoke-check<br/>py_compile| U
+    S -.->|3 deadlocks OR 10 round-trips| E[ESCALATE_USER]
 ```
 
-> **Note:** This flow is enforced via structured prompt instructions, not runtime code. The agent follows these steps because the skill's rules direct it to — compliance depends on the LLM's instruction-following capability.
-
 **Why it's different:**
-- **Goal Lock** — agent registers goal, task plan, and done criteria before any browser action. Re-reads at every phase transition to prevent drift.
-- **Proportional recon** — SKIP for simple tasks (1 snapshot), LIGHT for unknown pages, FULL only for multi-page auth-gated flows
-- **Pattern Recognition** — generalizes repeating patterns to code loops after 2 iterations. Prevents visiting all 50 pages via MCP.
-- **Snapshot-first observation** — accessibility tree (~2-5KB) as primary tool, screenshots (~100KB+) only for visual layout, debug escalation, or final delivery
-- **Layered debugging** — Quick Check (1 step) before Full Investigation (4 steps). Searches Playwright docs autonomously after 2 failures.
-- **Production-grade output** — class-based scripts with CLI args, logging, error handling, and accessible selectors
+- **Tool whitelist as a safety rail** — agent frontmatter is the enforcement point, not prose. No path to non-Playwright substitutes.
+- **Mentor consultation** — ambiguity is surfaced, not papered over. The agent never fabricates a selector or credential.
+- **Bounded cooperation** — deadlock counter + round-trip ceiling ensure the loop terminates.
+- **Session-isolated state** — each run writes to `.claude/agent-memory/domain-playwright-lead/sessions/<id>/state.json` (gitignored).
+- **All v3 principles preserved** — Goal Lock, Smart Recon, Pattern Recognition, Snapshot-first, Layered Debug now live inside the agent.
 
-| Variant | Language | Runtime | Skill |
-|---------|----------|---------|-------|
-| [playwright-autopilot](skills/playwright-autopilot/SKILL.md) | Python | `python script.py` | `playwright.sync_api`, argparse, logging |
-| [playwright-autopilot-ts](skills/playwright-autopilot-ts/SKILL.md) | TypeScript | `npx tsx script.ts` | async/await, zero deps beyond playwright |
+> **Claude Code only.** The mentor-consultation pattern requires Claude Code's project-scoped subagent dispatch, which Gemini CLI and Codex CLI don't support. The `platforms:` field in frontmatter is a real build filter — `dist/gemini-cli/playwright-autopilot/` and `dist/codex-cli/playwright-autopilot/` are intentionally absent. Pin tag `v3.1.0` if you need the earlier cross-platform inline playbook.
+
+| Variant | Language | Platforms | Pattern |
+|---------|----------|-----------|---------|
+| [playwright-autopilot](skills/playwright-autopilot/SKILL.md) | Python | claude-code | v4 dispatcher + companion agent |
+| [playwright-autopilot-ts](skills/playwright-autopilot-ts/SKILL.md) | TypeScript | claude-code, gemini-cli, codex-cli | v3-style inline playbook |
 
 [See the Python showcase &rarr;](skills/playwright-autopilot/README.md) &nbsp;|&nbsp; [See the TypeScript docs &rarr;](skills/playwright-autopilot-ts/README.md)
 
@@ -89,6 +84,13 @@ cp -r skill-factory/dist/gemini-cli/<skill-name> ~/.gemini/skills/
 ```bash
 cp skill-factory/dist/codex-cli/<skill-name>/AGENTS.md ./AGENTS.md
 ```
+
+> **Skills with companion agents.** Some skills (e.g., `playwright-autopilot` v4) ship a Claude-Code-only subagent under `.claude/agents/`. Copy that file alongside the skill so the dispatcher can spawn it:
+> ```bash
+> mkdir -p ~/.claude/agents
+> cp skill-factory/.claude/agents/domain-playwright-lead.md ~/.claude/agents/
+> ```
+> Or run Claude Code from within the cloned `skill-factory/` directory — project-scoped agents are auto-discovered from `.claude/agents/` with no install step.
 
 ### Option 2: Copy source directly
 
